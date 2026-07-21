@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Zgharta Geocoding System</title>
+
+<!-- Add-to-Home-Screen (works on iOS + Android) -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0f3d3e" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Zgharta Geo" />
+<link rel="apple-touch-icon" href="logo/skygrid-logo-.png" />
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -96,7 +105,13 @@
     font-weight:600;font-size:12px;text-decoration:none;text-align:center}
   .navbtn:hover{background:#1666d0}
 
-  @media (max-width:520px){ .panel{width:calc(100vw - 24px)} }
+  @media (max-width:520px){
+    .panel{width:calc(100vw - 16px);top:8px;left:8px}
+    .logos{padding:5px 8px;gap:8px}
+    .logos .logo-muni{height:38px}
+    .powered img{height:50px}
+    .powered .pw-label{font-size:10px}
+  }
 </style>
 </head>
 <body>
@@ -402,7 +417,8 @@ fetch(SETTINGS.zones.file).then(r=>r.json()).then(gj=>{
 /* ---------- controls + legend ---------- */
 let layerControl=null;
 function refreshControls(){ if(layerControl) map.removeControl(layerControl);
-  layerControl=L.control.layers(baseLayers,overlayLayers,{collapsed:false}).addTo(map); }
+  const collapsed = window.innerWidth < 760;   // tidy on phones
+  layerControl=L.control.layers(baseLayers,overlayLayers,{collapsed:collapsed}).addTo(map); }
 const legend=L.control({position:"bottomleft"});
 legend.onAdd=function(){ const d=L.DomUtil.create("div","legend");
   d.innerHTML=`<b>Streets</b><span class="sw" style="border-color:${C.primary}"></span>Primary<br>
