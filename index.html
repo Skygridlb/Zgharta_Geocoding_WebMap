@@ -16,7 +16,7 @@
   body{font-family:"Segoe UI",system-ui,Arial,sans-serif}
   #map{position:absolute;inset:0;background:#0b1c1c}
 
-  .panel{position:absolute;top:12px;left:12px;z-index:1000;width:340px;max-width:calc(100vw - 24px);
+  .panel{position:absolute;top:12px;left:12px;z-index:1000;width:352px;max-width:calc(100vw - 24px);
     background:var(--panel);color:var(--ink);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.35);overflow:hidden}
   .panel__head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--panel-2);border-bottom:1px solid var(--line)}
   .panel__head img{height:36px;width:auto;border-radius:6px;background:#fff;padding:2px}
@@ -24,13 +24,20 @@
   .panel__title small{display:block;font-weight:400;font-size:11px;color:var(--muted);margin-top:2px}
   .panel__body{padding:12px 14px;max-height:calc(100vh - 120px);overflow:auto}
 
-  label.fld{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:10px 0 4px}
+  label.fld{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:12px 0 4px}
   label.fld:first-child{margin-top:0}
   select,input[type="text"]{width:100%;font-size:13px;padding:9px 10px;border-radius:8px;border:1px solid var(--line);
     background:#0b3231;color:var(--ink);outline:none}
-  select:disabled{opacity:.45}
+  select:disabled,input:disabled{opacity:.4}
   select:focus,input:focus{border-color:var(--accent)}
   .zonename{font-size:14px;font-weight:700;color:var(--accent);min-height:18px;margin-top:6px}
+
+  .row{display:flex;gap:6px}
+  .row .cell{flex:1;min-width:0}
+  .row .cap{font-size:10px;color:var(--muted);margin:0 0 3px 2px}
+
+  .code-preview{font-size:12px;color:var(--muted);margin-top:8px}
+  .code-preview b{color:var(--ink)}
 
   .btns{display:flex;gap:8px;margin-top:12px}
   button{flex:1;font-size:13px;font-weight:600;padding:10px;border-radius:8px;border:0;cursor:pointer}
@@ -39,7 +46,7 @@
   button:disabled{opacity:.5;cursor:not-allowed}
 
   .sep{border:none;border-top:1px solid var(--line);margin:14px 0}
-  .results{list-style:none;margin:6px 0 0;padding:0;max-height:34vh;overflow:auto}
+  .results{list-style:none;margin:6px 0 0;padding:0;max-height:30vh;overflow:auto}
   .results li{padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;border:1px solid transparent}
   .results li:hover{background:var(--panel-2);border-color:var(--line)}
   .results li b{color:var(--accent)}
@@ -86,11 +93,27 @@
     <select id="selZone"><option value="">— select zone —</option></select>
     <div class="zonename" id="zoneName"></div>
 
-    <label class="fld">Street (primary‑secondary‑tertiary)</label>
-    <select id="selStreet" disabled><option value="">— select zone first —</option></select>
+    <label class="fld">Street code (primary · secondary · tertiary)</label>
+    <div class="row">
+      <div class="cell"><div class="cap">Primary</div>
+        <input id="pPrim" type="text" placeholder="e.g. 1" list="dlPrim" disabled autocomplete="off"></div>
+      <div class="cell"><div class="cap">Secondary</div>
+        <input id="pSec" type="text" placeholder="e.g. 10" list="dlSec" disabled autocomplete="off"></div>
+      <div class="cell"><div class="cap">Tertiary</div>
+        <input id="pTer" type="text" placeholder="e.g. 04" list="dlTer" disabled autocomplete="off"></div>
+    </div>
+    <datalist id="dlPrim"></datalist><datalist id="dlSec"></datalist><datalist id="dlTer"></datalist>
 
     <label class="fld">Building number</label>
-    <select id="selBuilding" disabled><option value="">— select street first —</option></select>
+    <div class="row">
+      <div class="cell" style="flex:2"><div class="cap">Number</div>
+        <input id="bNum" type="text" placeholder="e.g. 63" list="dlNum" disabled autocomplete="off"></div>
+      <div class="cell"><div class="cap">Letter</div>
+        <input id="bLet" type="text" placeholder="e.g. C" list="dlLet" disabled autocomplete="off"></div>
+    </div>
+    <datalist id="dlNum"></datalist><datalist id="dlLet"></datalist>
+
+    <div class="code-preview">Address: <b id="codePreview">—</b></div>
 
     <div class="btns">
       <button id="btnFind" disabled>Find building</button>
@@ -102,7 +125,7 @@
     <input id="quick" type="text" placeholder="e.g. 63C or Sleiman Frangieh" autocomplete="off" list="quicklist"/>
     <datalist id="quicklist"></datalist>
     <ul class="results" id="results"></ul>
-    <div class="hint">Pick zone → street → building number, then Find. Or type a number/name in Quick find.</div>
+    <div class="hint">Fill Primary, then Secondary/Tertiary if your street has them. Number is the digits, Letter is the suffix.</div>
   </div>
 </div>
 
@@ -112,14 +135,12 @@
 
 <script>
 /* ================================================================
-   ▼▼▼  SETTINGS — THE ONLY PART YOU NORMALLY EDIT  ▼▼▼
+   ▼▼▼  SETTINGS  ▼▼▼
    ================================================================ */
 const SETTINGS = {
   startCenter:null, startZoom:null,
   municipalityLogo:"logo/Municipality logo.png",
-
   ortho:{ show:true, urlPattern:"tiles/{z}/{x}/{y}.png", minZoom:14, maxZoom:21, tms:true, opacity:1.0 },
-
   buildingLayers:[
     { name:"Zgharta Buildings",       file:"data/Zgharta_Buildings.geojson" },
     { name:"Aardat Buildings",        file:"data/Aardat_Buildings.geojson" },
@@ -129,28 +150,25 @@ const SETTINGS = {
   ],
   roadNetwork:{ name:"Street Network", file:"data/Zgharta_Road_Network.geojson" },
   zones:{ name:"Zones", file:"data/ZONES.geojson" },
-
   colors:{ building:"#ff2d2d", primary:"#ff5e00", secondary:"#ffab00", tertiary:"#ffe14d", roadOther:"#ffd000", highlight:"#00e5ff" },
   roadLabelMinZoom:16,
-
   fields:{
-    zoneCode:      ["ZONE_CODE","Zone_Code"],
-    zoneName:      ["ZONE_NAME","Zone_Name","zone_name"],
-    streetAdd:     ["Street_Add","Streed_Add","STREET_ADD"],
-    roadName:      ["RoadName","Road_Name","ROADNAME"],
-    building:      ["B_ADDRESS","B_Address","BLDG_NO"],
-    geocode:       ["GEOCODING","GEOCODE"],
-    roadName_road: ["RoadName","Street_Add","Road_Name","Name"],
-    roadType_road: ["Type","TYPE","Class"],
-    zoneLabel:     ["ZONE_CODE","Zone_Code","ZONE","Code"]
+    zoneCode:["ZONE_CODE","Zone_Code"],
+    zoneName:["ZONE_NAME","Zone_Name"],
+    streetAdd:["Street_Add","Streed_Add","STREET_ADD"],
+    roadName:["RoadName","Road_Name","ROADNAME"],
+    building:["B_ADDRESS","B_Address","BLDG_NO"],
+    geocode:["GEOCODING","GEOCODE"],
+    roadName_road:["RoadName","Street_Add","Road_Name","Name"],
+    roadType_road:["Type","TYPE","Class"],
+    roadStreetAdd:["Street_Add","Streed_Add"],
+    zoneLabel:["ZONE_CODE","Zone_Code","ZONE","Code"]
   }
 };
-/* ================================================================
-   ▲▲▲  END OF SETTINGS  ▲▲▲
-   ================================================================ */
+/* ▲▲▲ END SETTINGS ▲▲▲ */
 const C = SETTINGS.colors;
 
-/* ---------- map + basemaps ---------- */
+/* ---------- map ---------- */
 const map = L.map("map",{zoomControl:true,minZoom:5,maxZoom:22});
 const esriSat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
   {maxZoom:22,maxNativeZoom:19,attribution:"Imagery © Esri"}).addTo(map);
@@ -171,37 +189,38 @@ function getProp(props,names){
   for(const n of names){ const v=lower[n.toLowerCase()]; if(v!==undefined&&v!==null&&v!=="") return v; }
   return "";
 }
-function streetClass(streetAdd){
-  const parts=String(streetAdd).split("-").filter(s=>s!=="");
-  if(parts.length<=1) return "Primary";
-  if(parts.length===2) return "Secondary";
-  return "Tertiary";
-}
-function roadColorFromType(type){
-  const t=String(type||"").toLowerCase();
-  if(t.includes("prim")) return C.primary;
-  if(t.includes("sec"))  return C.secondary;
-  if(t.includes("ter"))  return C.tertiary;
-  return C.roadOther;
-}
-function popupHtml(props,areaName){
+function streetClass(sa){ const p=String(sa).split("-").filter(s=>s!==""); return p.length<=1?"Primary":(p.length===2?"Secondary":"Tertiary"); }
+function roadColorFromType(t){ t=String(t||"").toLowerCase();
+  if(t.includes("prim"))return C.primary; if(t.includes("sec"))return C.secondary; if(t.includes("ter"))return C.tertiary; return C.roadOther; }
+// split a building number into digits + suffix letters, e.g. "63C" -> ["63","C"]
+function splitBuilding(b){ const m=String(b).trim().match(/^(\d+)\s*([A-Za-z]*)$/); return m?[m[1],m[2].toUpperCase()]:[String(b).trim(),""]; }
+
+function buildingPopup(props,areaName){
   const rows=[]; const add=(k,v)=>{ if(v!==""&&v!=null) rows.push(`<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`); };
   add("Zone",getProp(props,SETTINGS.fields.zoneName));
   add("Zone code",getProp(props,SETTINGS.fields.zoneCode));
   const sa=getProp(props,SETTINGS.fields.streetAdd);
-  add("Street code",sa);
-  if(sa!=="") add("Class",streetClass(sa));
+  add("Street code",sa); if(sa!=="") add("Class",streetClass(sa));
   add("Road name",getProp(props,SETTINGS.fields.roadName));
   add("Building",getProp(props,SETTINGS.fields.building));
   add("Area",areaName);
   add("Geocode",getProp(props,SETTINGS.fields.geocode));
-  return `<div class="pop"><h4>${getProp(props,SETTINGS.fields.building)||"Building"}</h4><table>${rows.join("")}</table></div>`;
+  return `<div class="pop"><h4>Building ${getProp(props,SETTINGS.fields.building)||""}</h4><table>${rows.join("")}</table></div>`;
+}
+function roadPopup(props){
+  const rows=[]; const add=(k,v)=>{ if(v!==""&&v!=null) rows.push(`<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`); };
+  const name=getProp(props,SETTINGS.fields.roadName_road);
+  const sa=getProp(props,SETTINGS.fields.roadStreetAdd);
+  add("Road name",name);
+  add("Street code",sa); if(sa!=="") add("Class",streetClass(sa));
+  add("Type",getProp(props,SETTINGS.fields.roadType_road));
+  return `<div class="pop"><h4>${name||("Street "+sa)||"Street"}</h4><table>${rows.join("")}</table></div>`;
 }
 
 /* ---------- stores ---------- */
-const buildingIndex=[];   // {area,props,layer,zoneCode,zoneName,streetAdd,roadName,building}
+const buildingIndex=[];   // {area,props,layer,zoneCode,zoneName,streetAdd,roadName,building,p1,p2,p3,bnum,blet}
 const allBounds=[];
-const roadGroups={};
+const zones={};           // zoneCode -> {name, records:[]}
 
 /* ---------- load buildings ---------- */
 let loaded=0; const total=SETTINGS.buildingLayers.length;
@@ -213,26 +232,28 @@ SETTINGS.buildingLayers.forEach(cfg=>{
       pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:5,color:C.building,fill:false,weight:1.6}),
       onEachFeature:(feature,lyr)=>{
         const p=feature.properties||{};
-        lyr.bindPopup(popupHtml(p,cfg.name),{maxWidth:280});
-        buildingIndex.push({
-          area:cfg.name, props:p, layer:lyr,
+        lyr.bindPopup(buildingPopup(p,cfg.name),{maxWidth:280});
+        const sa=String(getProp(p,SETTINGS.fields.streetAdd));
+        const parts=sa.split("-").filter(s=>s!=="");
+        const b=String(getProp(p,SETTINGS.fields.building));
+        const [bnum,blet]=splitBuilding(b);
+        const rec={ area:cfg.name, props:p, layer:lyr,
           zoneCode:String(getProp(p,SETTINGS.fields.zoneCode)),
           zoneName:String(getProp(p,SETTINGS.fields.zoneName)),
-          streetAdd:String(getProp(p,SETTINGS.fields.streetAdd)),
-          roadName:String(getProp(p,SETTINGS.fields.roadName)),
-          building:String(getProp(p,SETTINGS.fields.building))
-        });
+          streetAdd:sa, roadName:String(getProp(p,SETTINGS.fields.roadName)),
+          building:b, p1:parts[0]||"", p2:parts[1]||"", p3:parts[2]||"", bnum, blet };
+        buildingIndex.push(rec);
       }
     }).addTo(map);
     overlayLayers[cfg.name]=layer;
-    try{ const b=layer.getBounds(); if(b.isValid()) allBounds.push(b); }catch(e){}
+    try{ const bb=layer.getBounds(); if(bb.isValid()) allBounds.push(bb); }catch(e){}
     if(gj.features&&gj.features[0]) console.log(`[${cfg.name}] fields:`,Object.keys(gj.features[0].properties||{}));
   })
   .catch(err=>console.warn("Could not load "+cfg.file+": "+err.message))
   .finally(()=>{ loaded++; if(loaded===total) finishLoad(); });
 });
 
-/* ---------- roads ---------- */
+/* ---------- roads (lines + arrows + labels + popup) ---------- */
 const roadGroup=L.layerGroup();
 fetch(SETTINGS.roadNetwork.file).then(r=>r.json()).then(gj=>{
   if(gj.features&&gj.features[0]) console.log("[Roads] fields:",Object.keys(gj.features[0].properties||{}));
@@ -242,8 +263,8 @@ fetch(SETTINGS.roadNetwork.file).then(r=>r.json()).then(gj=>{
       const p=feature.properties||{};
       const name=String(getProp(p,SETTINGS.fields.roadName_road));
       const type=String(getProp(p,SETTINGS.fields.roadType_road));
-      if(name){ lyr.bindTooltip(name,{permanent:true,direction:"center",className:"road-label"});
-        if(!roadGroups[name]) roadGroups[name]={type,layers:[]}; roadGroups[name].layers.push(lyr); }
+      lyr.bindPopup(roadPopup(p),{maxWidth:260});
+      if(name) lyr.bindTooltip(name,{permanent:true,direction:"center",className:"road-label"});
       if(L.polylineDecorator&&lyr.getLatLngs){ try{
         roadGroup.addLayer(L.polylineDecorator(lyr,{patterns:[{offset:"6%",repeat:"14%",
           symbol:L.Symbol.arrowHead({pixelSize:9,polygon:false,pathOptions:{stroke:true,color:roadColorFromType(type),weight:2,opacity:.95}})}]}));
@@ -259,10 +280,8 @@ fetch(SETTINGS.roadNetwork.file).then(r=>r.json()).then(gj=>{
 fetch(SETTINGS.zones.file).then(r=>r.json()).then(gj=>{
   const layer=L.geoJSON(gj,{
     style:{color:C.tertiary,weight:1.5,fill:false,opacity:.5,dashArray:"6,5"},
-    onEachFeature:(feature,lyr)=>{
-      const code=getProp(feature.properties,SETTINGS.fields.zoneLabel);
-      if(code!==""&&lyr.getBounds) lyr.bindTooltip(String(code),{permanent:true,direction:"center",className:"zone-label"});
-    }
+    onEachFeature:(feature,lyr)=>{ const code=getProp(feature.properties,SETTINGS.fields.zoneLabel);
+      if(code!==""&&lyr.getBounds) lyr.bindTooltip(String(code),{permanent:true,direction:"center",className:"zone-label"}); }
   });
   overlayLayers[SETTINGS.zones.name]=layer; layer.addTo(map); refreshControls();
 }).catch(e=>console.warn("Zones: "+e.message));
@@ -273,138 +292,148 @@ function refreshControls(){ if(layerControl) map.removeControl(layerControl);
   layerControl=L.control.layers(baseLayers,overlayLayers,{collapsed:false}).addTo(map); }
 const legend=L.control({position:"bottomleft"});
 legend.onAdd=function(){ const d=L.DomUtil.create("div","legend");
-  d.innerHTML=`<b>Streets</b>
-    <span class="sw" style="border-color:${C.primary}"></span>Primary<br>
+  d.innerHTML=`<b>Streets</b><span class="sw" style="border-color:${C.primary}"></span>Primary<br>
     <span class="sw" style="border-color:${C.secondary}"></span>Secondary<br>
     <span class="sw" style="border-color:${C.tertiary}"></span>Tertiary<br>
-    <b style="margin-top:6px">Buildings</b><span class="bx"></span>Building outline`;
-  return d; };
+    <b style="margin-top:6px">Buildings</b><span class="bx"></span>Building outline`; return d; };
 legend.addTo(map);
 function applyRoadLabelZoom(){ const el=map.getContainer();
-  if(map.getZoom()<SETTINGS.roadLabelMinZoom) L.DomUtil.addClass(el,"hide-road-labels");
-  else L.DomUtil.removeClass(el,"hide-road-labels"); }
+  if(map.getZoom()<SETTINGS.roadLabelMinZoom) L.DomUtil.addClass(el,"hide-road-labels"); else L.DomUtil.removeClass(el,"hide-road-labels"); }
 map.on("zoomend",applyRoadLabelZoom);
 
 /* ================================================================
-   CASCADING CITIZEN SEARCH:  Zone -> Street -> Building
+   SEGMENTED STREET + BUILDING SEARCH
    ================================================================ */
 const selZone=document.getElementById("selZone");
-const selStreet=document.getElementById("selStreet");
-const selBuilding=document.getElementById("selBuilding");
 const zoneNameEl=document.getElementById("zoneName");
-const btnFind=document.getElementById("btnFind");
-const btnReset=document.getElementById("btnReset");
-
-// tree: zoneCode -> { name, streets: { streetAdd -> { roadName, buildings: { bno -> record } } } }
-const tree={};
+const pPrim=document.getElementById("pPrim"), pSec=document.getElementById("pSec"), pTer=document.getElementById("pTer");
+const bNum=document.getElementById("bNum"), bLet=document.getElementById("bLet");
+const dlPrim=document.getElementById("dlPrim"), dlSec=document.getElementById("dlSec"), dlTer=document.getElementById("dlTer");
+const dlNum=document.getElementById("dlNum"), dlLet=document.getElementById("dlLet");
+const codePreview=document.getElementById("codePreview");
+const btnFind=document.getElementById("btnFind"), btnReset=document.getElementById("btnReset");
 let highlight=[];
 
-function natCmp(a,b){ return String(a).localeCompare(String(b),undefined,{numeric:true}); }
+function uniqSorted(arr){ return [...new Set(arr.filter(v=>v!==""))].sort((a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true})); }
+function fillDatalist(dl,vals){ dl.innerHTML=vals.map(v=>`<option value="${String(v).replace(/"/g,'')}">`).join(""); }
+function zoneRecs(){ const z=selZone.value; return (zones[z]?zones[z].records:[]); }
 
-function buildTree(){
-  buildingIndex.forEach(r=>{
-    const zc=r.zoneCode||"(none)";
-    if(!tree[zc]) tree[zc]={name:r.zoneName||"", streets:{}};
-    if(!tree[zc].name && r.zoneName) tree[zc].name=r.zoneName;
-    const sa=r.streetAdd||"(none)";
-    if(!tree[zc].streets[sa]) tree[zc].streets[sa]={roadName:r.roadName||"", buildings:{}};
-    if(!tree[zc].streets[sa].roadName && r.roadName) tree[zc].streets[sa].roadName=r.roadName;
-    const bno=r.building||"(none)";
-    if(!tree[zc].streets[sa].buildings[bno]) tree[zc].streets[sa].buildings[bno]=r;
+function currentStreetCode(){
+  const a=pPrim.value.trim(), b=pSec.value.trim(), c=pTer.value.trim();
+  if(!a) return "";
+  if(!b) return a;
+  if(!c) return a+"-"+b;
+  return a+"-"+b+"-"+c;
+}
+function updatePreview(){
+  const code=currentStreetCode();
+  const num=bNum.value.trim(), let_=bLet.value.trim();
+  const bldg=num?(num+let_):"";
+  codePreview.textContent = (selZone.value?("Zone "+selZone.value):"—") + (code?(" · St "+code):"") + (bldg?(" · Bldg "+bldg):"");
+}
+
+/* build zone dropdown */
+function buildZones(){
+  buildingIndex.forEach(r=>{ const zc=r.zoneCode||"(none)";
+    if(!zones[zc]) zones[zc]={name:r.zoneName||"",records:[]};
+    if(!zones[zc].name&&r.zoneName) zones[zc].name=r.zoneName;
+    zones[zc].records.push(r); });
+  Object.keys(zones).sort((a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true})).forEach(zc=>{
+    const o=document.createElement("option"); o.value=zc; o.textContent=zones[zc].name?`${zc} — ${zones[zc].name}`:zc; selZone.appendChild(o);
   });
-  // fill zone dropdown
-  const zoneCodes=Object.keys(tree).sort(natCmp);
-  zoneCodes.forEach(zc=>{
-    const o=document.createElement("option");
-    o.value=zc; o.textContent = tree[zc].name ? `${zc} — ${tree[zc].name}` : zc;
-    selZone.appendChild(o);
-  });
-  buildQuicklist();
+  // quick list = road names
+  const names=uniqSorted(buildingIndex.map(r=>r.roadName));
+  fillDatalist(document.getElementById("quicklist"),names);
 }
 
 selZone.addEventListener("change",()=>{
   const zc=selZone.value;
-  resetStreet(); resetBuilding();
-  zoneNameEl.textContent = zc && tree[zc] ? tree[zc].name : "";
-  if(!zc){ return; }
-  const streets=Object.keys(tree[zc].streets).sort(natCmp);
-  selStreet.disabled=false;
-  selStreet.innerHTML='<option value="">— select street —</option>';
-  streets.forEach(sa=>{
-    const s=tree[zc].streets[sa];
-    const cls = sa==="(none)" ? "" : streetClass(sa);
-    const nm  = s.roadName ? s.roadName : "(no name)";
-    const label = sa==="(none)" ? "(no street code)" : `${sa} · ${cls} · ${nm}`;
-    const o=document.createElement("option"); o.value=sa; o.textContent=label;
-    selStreet.appendChild(o);
-  });
+  zoneNameEl.textContent = zc&&zones[zc]?zones[zc].name:"";
+  [pPrim,pSec,pTer,bNum,bLet].forEach(i=>{ i.value=""; i.disabled=true; });
+  if(zc){ pPrim.disabled=false; fillDatalist(dlPrim, uniqSorted(zoneRecs().map(r=>r.p1))); }
+  refreshFindState(); updatePreview();
 });
 
-selStreet.addEventListener("change",()=>{
-  resetBuilding();
-  const zc=selZone.value, sa=selStreet.value;
-  if(!sa){ return; }
-  const bldgs=Object.keys(tree[zc].streets[sa].buildings).sort(natCmp);
-  selBuilding.disabled=false;
-  selBuilding.innerHTML='<option value="">— select building —</option>';
-  bldgs.forEach(b=>{ const o=document.createElement("option"); o.value=b; o.textContent=b; selBuilding.appendChild(o); });
+pPrim.addEventListener("input",()=>{
+  const p1=pPrim.value.trim();
+  pSec.value=""; pTer.value=""; pSec.disabled=!p1; pTer.disabled=true;
+  if(p1) fillDatalist(dlSec, uniqSorted(zoneRecs().filter(r=>r.p1===p1&&r.p2!=="").map(r=>r.p2)));
+  refreshBuildingBoxes(); refreshFindState(); updatePreview();
 });
+pSec.addEventListener("input",()=>{
+  const p1=pPrim.value.trim(), p2=pSec.value.trim();
+  pTer.value=""; pTer.disabled=!p2;
+  if(p2) fillDatalist(dlTer, uniqSorted(zoneRecs().filter(r=>r.p1===p1&&r.p2===p2&&r.p3!=="").map(r=>r.p3)));
+  refreshBuildingBoxes(); refreshFindState(); updatePreview();
+});
+pTer.addEventListener("input",()=>{ refreshBuildingBoxes(); refreshFindState(); updatePreview(); });
 
-selBuilding.addEventListener("change",()=>{ btnFind.disabled = !selBuilding.value; });
+function streetRecs(){ const code=currentStreetCode(); if(!code) return [];
+  return zoneRecs().filter(r=>r.streetAdd===code); }
+function refreshBuildingBoxes(){
+  const recs=streetRecs();
+  if(recs.length){ bNum.disabled=false; fillDatalist(dlNum, uniqSorted(recs.map(r=>r.bnum))); }
+  else { bNum.disabled=true; bNum.value=""; }
+  bLet.disabled=true; bLet.value=""; dlLet.innerHTML="";
+}
+bNum.addEventListener("input",()=>{
+  const num=bNum.value.trim();
+  const recs=streetRecs().filter(r=>r.bnum===num);
+  const letters=uniqSorted(streetRecs().filter(r=>r.bnum===num).map(r=>r.blet));
+  bLet.disabled = !num || letters.filter(l=>l!=="").length===0;
+  fillDatalist(dlLet, letters);
+  refreshFindState(); updatePreview();
+});
+bLet.addEventListener("input",()=>{ refreshFindState(); updatePreview(); });
+
+function refreshFindState(){ btnFind.disabled = !(selZone.value && pPrim.value.trim() && bNum.value.trim()); }
 
 btnFind.addEventListener("click",()=>{
-  const zc=selZone.value, sa=selStreet.value, b=selBuilding.value;
-  if(zc&&sa&&b && tree[zc]&&tree[zc].streets[sa]&&tree[zc].streets[sa].buildings[b]){
-    goToBuilding(tree[zc].streets[sa].buildings[b]);
+  const code=currentStreetCode();
+  const num=bNum.value.trim(), let_=bLet.value.trim().toUpperCase();
+  let recs=zoneRecs().filter(r=>r.streetAdd===code && r.bnum===num && (let_?r.blet===let_:true));
+  if(!recs.length){ // relax: ignore letter
+    recs=zoneRecs().filter(r=>r.streetAdd===code && r.bnum===num);
   }
+  if(recs.length){ goToBuilding(recs[0]); showResults(recs); }
+  else { document.getElementById("results").innerHTML='<li class="empty">No building matches that address.</li>'; }
 });
 
 btnReset.addEventListener("click",()=>{
   selZone.value=""; zoneNameEl.textContent="";
-  resetStreet(); resetBuilding();
+  [pPrim,pSec,pTer,bNum,bLet].forEach(i=>{ i.value=""; i.disabled=true; });
   document.getElementById("quick").value="";
   document.getElementById("results").innerHTML="";
-  clearHighlight();
+  refreshFindState(); updatePreview(); clearHighlight();
 });
-
-function resetStreet(){ selStreet.disabled=true; selStreet.innerHTML='<option value="">— select zone first —</option>'; }
-function resetBuilding(){ selBuilding.disabled=true; selBuilding.innerHTML='<option value="">— select street first —</option>'; btnFind.disabled=true; }
 
 /* ---------- quick find ---------- */
 const quick=document.getElementById("quick");
-const quicklist=document.getElementById("quicklist");
 const resultsEl=document.getElementById("results");
-
-function buildQuicklist(){
-  const names=new Set();
-  buildingIndex.forEach(r=>{ if(r.roadName) names.add(r.roadName); });
-  quicklist.innerHTML=[...names].sort(natCmp).map(v=>`<option value="${String(v).replace(/"/g,'')}">`).join("");
-}
 quick.addEventListener("input",()=>{
   const q=quick.value.trim().toLowerCase(); resultsEl.innerHTML="";
   if(!q) return;
   const out=[];
   for(const r of buildingIndex){
-    if(r.building.toLowerCase().includes(q) || r.roadName.toLowerCase().includes(q) || r.streetAdd.toLowerCase().includes(q)){
-      out.push(r); if(out.length>=80) break;
-    }
+    if(r.building.toLowerCase().includes(q)||r.roadName.toLowerCase().includes(q)||r.streetAdd.toLowerCase().includes(q)){
+      out.push(r); if(out.length>=80) break; }
   }
-  if(!out.length){ resultsEl.innerHTML='<li class="empty">No matches.</li>'; return; }
-  out.forEach(r=>{
-    const li=document.createElement("li");
+  showResults(out);
+});
+function showResults(list){
+  if(!list.length){ resultsEl.innerHTML='<li class="empty">No matches.</li>'; return; }
+  resultsEl.innerHTML="";
+  list.forEach(r=>{ const li=document.createElement("li");
     li.innerHTML=`<b>${r.building||"—"}</b> · Zone ${r.zoneCode} ${r.zoneName}
       <span class="sub">${r.streetAdd?("St "+r.streetAdd):""}${r.roadName?" · "+r.roadName:""} · ${r.area}</span>`;
-    li.onclick=()=>goToBuilding(r);
-    resultsEl.appendChild(li);
-  });
-});
+    li.onclick=()=>goToBuilding(r); resultsEl.appendChild(li); });
+}
 
 /* ---------- navigation ---------- */
 function clearHighlight(){ highlight.forEach(l=>{ try{ l.setStyle({color:C.building,weight:1.4,fill:false}); }catch(e){} }); highlight=[]; }
 function goToBuilding(rec){
   clearHighlight(); const lyr=rec.layer;
-  try{ if(lyr.getBounds) map.flyToBounds(lyr.getBounds(),{maxZoom:20,padding:[40,40]});
-       else if(lyr.getLatLng) map.flyTo(lyr.getLatLng(),20); }catch(e){}
+  try{ if(lyr.getBounds) map.flyToBounds(lyr.getBounds(),{maxZoom:20,padding:[40,40]}); else if(lyr.getLatLng) map.flyTo(lyr.getLatLng(),20); }catch(e){}
   try{ lyr.setStyle({color:C.highlight,weight:3,fill:true,fillColor:C.highlight,fillOpacity:.4}); highlight=[lyr]; }catch(e){}
   setTimeout(()=>{ try{lyr.openPopup();}catch(e){} },650);
 }
@@ -415,11 +444,9 @@ function finishLoad(){
   if(SETTINGS.startCenter&&SETTINGS.startZoom) map.setView(SETTINGS.startCenter,SETTINGS.startZoom);
   else if(allBounds.length){ let b=allBounds[0]; for(let i=1;i<allBounds.length;i++) b=b.extend(allBounds[i]); map.fitBounds(b.pad(0.05)); }
   else map.setView([34.395,35.895],14);
-  applyRoadLabelZoom();
-  buildTree();
-  console.log("Buildings indexed:",buildingIndex.length,"| zones:",Object.keys(tree).length);
+  applyRoadLabelZoom(); buildZones(); updatePreview();
+  console.log("Buildings indexed:",buildingIndex.length,"| zones:",Object.keys(zones).length);
 }
-
 L.control.scale({imperial:false}).addTo(map);
 </script>
 </body>
