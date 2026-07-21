@@ -103,7 +103,6 @@
   .contact .pill{font-size:11px;font-weight:700;color:#111 !important;text-decoration:none;border:1px solid #333;border-radius:6px;padding:3px 9px;background:#f3f3f3}
   .contact .pill:hover{background:#e6e6e6}
   .contact .tagline{font-size:10px;color:#777;letter-spacing:.5px;margin-top:6px}
-  @media (max-width:760px){ .contact{display:none} }
 
   .navbtn{display:inline-block;margin-top:8px;padding:7px 10px;border-radius:7px;background:#1a73e8;color:#fff !important;
     font-weight:600;font-size:12px;text-decoration:none;text-align:center}
@@ -113,10 +112,19 @@
     .panel{width:calc(100vw - 16px);top:8px;left:8px}
     .panel__body{max-height:62vh}
     .results{max-height:22vh}
-    .logos{padding:5px 8px;gap:8px}
-    .logos .logo-muni{height:38px}
-    .powered img{height:50px}
+  }
+  /* phones: branding becomes a full-width bar at the bottom */
+  @media (max-width:620px){
+    .logos{position:fixed;left:0;right:0;bottom:0;width:100%;max-width:none;border-radius:0;
+      justify-content:center;gap:12px;padding:6px 10px;box-shadow:0 -2px 12px rgba(0,0,0,.35);z-index:1000;flex-wrap:nowrap}
+    .logos .logo-muni{height:40px}
+    .powered img{height:46px}
     .powered .pw-label{font-size:10px}
+    .contact{display:flex;padding-left:10px}
+    .contact .ctitle,.contact .cphone,.contact .cemail,.contact .tagline{display:none}  /* keep the bar short */
+    .contact .cname{font-size:12px}
+    .contact .social{margin-top:4px}
+    .leaflet-bottom{bottom:74px}   /* lift legend + attribution above the branding bar */
   }
 </style>
 </head>
