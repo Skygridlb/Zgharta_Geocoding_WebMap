@@ -389,9 +389,10 @@ fetch(SETTINGS.roadNetwork.file).then(r=>r.json()).then(gj=>{
       const rawId=String(getProp(p,SETTINGS.fields.roadRawId));
       const rname=String(getProp(p,SETTINGS.fields.roadNameOnly));
       lyr.bindPopup(roadPopup(p),{maxWidth:260});
-      const box = (cls==="Primary") ? rawId : sa;   // primary → Raw_ID_26 ; others → street code
-      if(box) lyr.bindTooltip(box,{permanent:true,direction:"center",className:"road-label"});
-      roadLines.push({lyr, label:rname});           // blue road name, parallel
+      const code = (cls==="Primary") ? rawId : sa;      // primary → Raw_ID ; others → street code
+      let label = code || "";
+      if(rname) label = label ? (label + "  ·  " + rname) : rname;   // code + road name, parallel
+      roadLines.push({lyr, label});
       if(L.polylineDecorator&&lyr.getLatLngs){ try{
         roadGroup.addLayer(L.polylineDecorator(lyr,{patterns:[{offset:"6%",repeat:"14%",
           symbol:L.Symbol.arrowHead({pixelSize:9,polygon:false,pathOptions:{stroke:true,color:roadColorForFeature(p),weight:2,opacity:.97}})}]}));
@@ -411,7 +412,7 @@ function refreshRoadText(){
   roadLines.forEach(o=>{ if(!o.lyr.setText) return; try{
     o.lyr.setText(null);
     if(show && o.label) o.lyr.setText("  "+o.label+"  ",{center:true,offset:4,
-      attributes:{fill:"#12379c",stroke:"#fff","stroke-width":3,"paint-order":"stroke","font-weight":"700","font-size":"12px"}});
+      attributes:{fill:"#111",stroke:"#fff","stroke-width":3.5,"paint-order":"stroke","font-weight":"700","font-size":"12px"}});
   }catch(e){} });
 }
 
