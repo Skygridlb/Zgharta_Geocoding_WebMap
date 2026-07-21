@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Zgharta Geocoding Map</title>
+<title>Zgharta Geocoding System</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-textpath@1.2.3/leaflet.textpath.js"></script>
 
 <style>
   :root{--panel:#0f3d3e;--panel-2:#14504f;--ink:#eef6f4;--muted:#9dc2bd;--accent:#f2a35e;--line:rgba(255,255,255,.12)}
@@ -75,6 +76,13 @@
   .brand{position:absolute;right:10px;bottom:24px;z-index:900;display:flex;gap:8px;align-items:center}
   .brand img{height:42px;width:auto;background:#fff;border-radius:8px;padding:3px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
 
+  .logos{display:flex;gap:8px;align-items:center}
+  .logos img{height:46px;width:auto;background:#fff;border-radius:8px;padding:3px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+
+  .navbtn{display:inline-block;margin-top:8px;padding:7px 10px;border-radius:7px;background:#1a73e8;color:#fff !important;
+    font-weight:600;font-size:12px;text-decoration:none;text-align:center}
+  .navbtn:hover{background:#1666d0}
+
   @media (max-width:520px){ .panel{width:calc(100vw - 24px)} }
 </style>
 </head>
@@ -84,8 +92,7 @@
 
 <div class="panel">
   <div class="panel__head">
-    <img id="logoMuni" src="" alt="" onerror="this.style.display='none'"/>
-    <div class="panel__title">Zgharta Survey 2026<small>Find your building</small></div>
+    <div class="panel__title">Zgharta Geocoding System<small>Find your building</small></div>
   </div>
   <div class="panel__body">
 
@@ -129,10 +136,6 @@
   </div>
 </div>
 
-<div class="brand">
-  <img src="logo/skygrid-logo-.png" alt="SkyGrid" onerror="this.style.display='none'"/>
-</div>
-
 <script>
 /* ================================================================
    ▼▼▼  SETTINGS  ▼▼▼
@@ -160,6 +163,7 @@ const SETTINGS = {
     building:["B_ADDRESS","B_Address","BLDG_NO"],
     geocode:["GEOCODING","GEOCODE"],
     roadName_road:["RoadName","Street_Add","Road_Name","Name"],
+    roadNameOnly:["RoadName","Road_Name","ROADNAME","Name"],
     roadType_road:["Type","TYPE","Class"],
     roadStreetAdd:["Street_Add","Streed_Add"],
     zoneLabel:["ZONE_CODE","Zone_Code","ZONE","Code"]
@@ -179,7 +183,14 @@ const orthoLayer = L.tileLayer(SETTINGS.ortho.urlPattern,{tms:SETTINGS.ortho.tms
 if(SETTINGS.ortho.show) orthoLayer.addTo(map);
 const baseLayers={"Satellite (Esri)":esriSat,"OpenStreetMap":osm};
 const overlayLayers={}; overlayLayers["Orthophoto"]=orthoLayer;
-document.getElementById("logoMuni").src=SETTINGS.municipalityLogo;
+
+// both logos together, top-right corner
+const logosCtl=L.control({position:"topright"});
+logosCtl.onAdd=function(){ const d=L.DomUtil.create("div","logos");
+  d.innerHTML=`<img src="${SETTINGS.municipalityLogo}" alt="Municipality" onerror="this.style.display='none'">`+
+              `<img src="logo/skygrid-logo-.png" alt="SkyGrid" onerror="this.style.display='none'">`;
+  return d; };
+logosCtl.addTo(map);
 
 /* ---------- helpers ---------- */
 function getProp(props,names){
@@ -213,7 +224,10 @@ function zoneColor(code){ const n=parseInt(code,10); const i=isNaN(n)?hashCode(S
 // split a building number into digits + suffix letters, e.g. "63C" -> ["63","C"]
 function splitBuilding(b){ const m=String(b).trim().match(/^(\d+)\s*([A-Za-z]*)$/); return m?[m[1],m[2].toUpperCase()]:[String(b).trim(),""]; }
 
-function buildingPopup(props,areaName){
+function navBtn(center){ if(!center) return "";
+  const u=`https://www.google.com/maps/dir/?api=1&destination=${center.lat},${center.lng}`;
+  return `<a class="navbtn" href="${u}" target="_blank" rel="noopener">➤ Navigate in Google Maps</a>`; }
+function buildingPopup(props,areaName,center){
   const rows=[]; const add=(k,v)=>{ if(v!==""&&v!=null) rows.push(`<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`); };
   add("Zone",getProp(props,SETTINGS.fields.zoneName));
   add("Zone code",getProp(props,SETTINGS.fields.zoneCode));
@@ -223,11 +237,11 @@ function buildingPopup(props,areaName){
   add("Building",getProp(props,SETTINGS.fields.building));
   add("Area",areaName);
   add("Geocode",getProp(props,SETTINGS.fields.geocode));
-  return `<div class="pop"><h4>Building ${getProp(props,SETTINGS.fields.building)||""}</h4><table>${rows.join("")}</table></div>`;
+  return `<div class="pop"><h4>Building ${getProp(props,SETTINGS.fields.building)||""}</h4><table>${rows.join("")}</table>${navBtn(center)}</div>`;
 }
 function roadPopup(props){
   const rows=[]; const add=(k,v)=>{ if(v!==""&&v!=null) rows.push(`<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`); };
-  const name=getProp(props,SETTINGS.fields.roadName_road);
+  const name=getProp(props,SETTINGS.fields.roadNameOnly);
   const sa=getProp(props,SETTINGS.fields.roadStreetAdd);
   add("Road name",name);
   add("Street code",sa); if(sa!=="") add("Class",streetClass(sa));
@@ -250,7 +264,8 @@ SETTINGS.buildingLayers.forEach(cfg=>{
       pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:6,color:C.building,fill:true,fillColor:C.building,fillOpacity:.15,weight:1.8}),
       onEachFeature:(feature,lyr)=>{
         const p=feature.properties||{};
-        lyr.bindPopup(buildingPopup(p,cfg.name),{maxWidth:280});
+        let center=null; try{ center = lyr.getBounds ? lyr.getBounds().getCenter() : (lyr.getLatLng?lyr.getLatLng():null); }catch(e){}
+        lyr.bindPopup(buildingPopup(p,cfg.name,center),{maxWidth:280});
         const sa=String(getProp(p,SETTINGS.fields.streetAdd));
         const parts=sa.split("-").filter(s=>s!=="");
         const b=String(getProp(p,SETTINGS.fields.building));
@@ -271,19 +286,18 @@ SETTINGS.buildingLayers.forEach(cfg=>{
   .finally(()=>{ loaded++; if(loaded===total) finishLoad(); });
 });
 
-/* ---------- roads (lines + arrows + labels + popup) ---------- */
+/* ---------- roads (lines + arrows + road-name-along-street + popup) ---------- */
 const roadGroup=L.layerGroup();
+const roadLines=[];   // road names drawn PARALLEL to each street, only when zoomed in enough
 fetch(SETTINGS.roadNetwork.file).then(r=>r.json()).then(gj=>{
   if(gj.features&&gj.features[0]) console.log("[Roads] fields:",Object.keys(gj.features[0].properties||{}));
   const lines=L.geoJSON(gj,{
     style:f=>({color:roadColorForFeature(f.properties),weight:4,opacity:.97}),
     onEachFeature:(feature,lyr)=>{
       const p=feature.properties||{};
-      const sa=String(getProp(p,SETTINGS.fields.roadStreetAdd));
-      const name=String(getProp(p,SETTINGS.fields.roadName_road));
+      const name=String(getProp(p,SETTINGS.fields.roadNameOnly));   // road NAME only, no Street_Add
       lyr.bindPopup(roadPopup(p),{maxWidth:260});
-      const label = sa ? (sa + (name?("  "+name):"")) : name;   // Street_Add, then road name if present
-      if(label) lyr.bindTooltip(label,{permanent:true,direction:"center",className:"road-label"});
+      roadLines.push({lyr, label:name});                            // text applied in refreshRoadText()
       if(L.polylineDecorator&&lyr.getLatLngs){ try{
         roadGroup.addLayer(L.polylineDecorator(lyr,{patterns:[{offset:"6%",repeat:"14%",
           symbol:L.Symbol.arrowHead({pixelSize:9,polygon:false,pathOptions:{stroke:true,color:roadColorForFeature(p),weight:2,opacity:.97}})}]}));
@@ -292,8 +306,18 @@ fetch(SETTINGS.roadNetwork.file).then(r=>r.json()).then(gj=>{
   });
   roadGroup.addLayer(lines); roadGroup.addTo(map);
   overlayLayers[SETTINGS.roadNetwork.name]=roadGroup;
-  refreshControls(); applyRoadLabelZoom();
+  refreshControls(); refreshRoadText();
 }).catch(e=>console.warn("Roads: "+e.message));
+
+// road names drawn PARALLEL to each street, only when zoomed in enough
+function refreshRoadText(){
+  const show = map.getZoom() >= SETTINGS.roadLabelMinZoom;
+  roadLines.forEach(o=>{ if(!o.lyr.setText) return; try{
+    o.lyr.setText(null);
+    if(show && o.label) o.lyr.setText("  "+o.label+"  ",{center:true,offset:4,
+      attributes:{fill:"#111",stroke:"#fff","stroke-width":3,"paint-order":"stroke","font-weight":"700","font-size":"12px"}});
+  }catch(e){} });
+}
 
 /* ---------- zones (labels only) ---------- */
 fetch(SETTINGS.zones.file).then(r=>r.json()).then(gj=>{
@@ -320,9 +344,7 @@ legend.onAdd=function(){ const d=L.DomUtil.create("div","legend");
     <span class="sw" style="border-color:${C.tertiary}"></span>Tertiary<br>
     <b style="margin-top:6px">Buildings</b><span class="bx"></span>Building outline`; return d; };
 legend.addTo(map);
-function applyRoadLabelZoom(){ const el=map.getContainer();
-  if(map.getZoom()<SETTINGS.roadLabelMinZoom) L.DomUtil.addClass(el,"hide-road-labels"); else L.DomUtil.removeClass(el,"hide-road-labels"); }
-map.on("zoomend",applyRoadLabelZoom);
+map.on("zoomend",()=>{ try{ refreshRoadText(); }catch(e){} });
 
 /* ================================================================
    SEGMENTED STREET + BUILDING SEARCH
@@ -467,7 +489,7 @@ function finishLoad(){
   if(SETTINGS.startCenter&&SETTINGS.startZoom) map.setView(SETTINGS.startCenter,SETTINGS.startZoom);
   else if(allBounds.length){ let b=allBounds[0]; for(let i=1;i<allBounds.length;i++) b=b.extend(allBounds[i]); map.fitBounds(b.pad(0.05)); }
   else map.setView([34.395,35.895],14);
-  applyRoadLabelZoom(); buildZones(); updatePreview();
+  try{ refreshRoadText(); }catch(e){} buildZones(); updatePreview();
   console.log("Buildings indexed:",buildingIndex.length,"| zones:",Object.keys(zones).length);
 }
 L.control.scale({imperial:false}).addTo(map);
