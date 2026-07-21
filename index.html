@@ -77,7 +77,8 @@
   .brand img{height:42px;width:auto;background:#fff;border-radius:8px;padding:3px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
 
   .logos{display:flex;gap:8px;align-items:center}
-  .logos img{height:46px;width:auto;background:#fff;border-radius:8px;padding:3px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+  .logos img{height:52px;width:auto;background:#fff;border-radius:8px;padding:3px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+  .logos .logo-sky{height:64px}
 
   .navbtn{display:inline-block;margin-top:8px;padding:7px 10px;border-radius:7px;background:#1a73e8;color:#fff !important;
     font-weight:600;font-size:12px;text-decoration:none;text-align:center}
@@ -188,7 +189,7 @@ const overlayLayers={}; overlayLayers["Orthophoto"]=orthoLayer;
 const logosCtl=L.control({position:"topright"});
 logosCtl.onAdd=function(){ const d=L.DomUtil.create("div","logos");
   d.innerHTML=`<img src="${SETTINGS.municipalityLogo}" alt="Municipality" onerror="this.style.display='none'">`+
-              `<img src="logo/skygrid-logo-.png" alt="SkyGrid" onerror="this.style.display='none'">`;
+              `<img class="logo-sky" src="logo/skygrid-logo-.png" alt="SkyGrid" onerror="this.style.display='none'">`;
   return d; };
 logosCtl.addTo(map);
 
@@ -295,9 +296,9 @@ fetch(SETTINGS.roadNetwork.file).then(r=>r.json()).then(gj=>{
     style:f=>({color:roadColorForFeature(f.properties),weight:4,opacity:.97}),
     onEachFeature:(feature,lyr)=>{
       const p=feature.properties||{};
-      const name=String(getProp(p,SETTINGS.fields.roadNameOnly));   // road NAME only, no Street_Add
+      const label=String(getProp(p,SETTINGS.fields.roadStreetAdd));   // label ALL streets by Street_Add
       lyr.bindPopup(roadPopup(p),{maxWidth:260});
-      roadLines.push({lyr, label:name});                            // text applied in refreshRoadText()
+      roadLines.push({lyr, label});                                    // text applied in refreshRoadText()
       if(L.polylineDecorator&&lyr.getLatLngs){ try{
         roadGroup.addLayer(L.polylineDecorator(lyr,{patterns:[{offset:"6%",repeat:"14%",
           symbol:L.Symbol.arrowHead({pixelSize:9,polygon:false,pathOptions:{stroke:true,color:roadColorForFeature(p),weight:2,opacity:.97}})}]}));
