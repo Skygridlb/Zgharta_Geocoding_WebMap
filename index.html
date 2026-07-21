@@ -154,7 +154,7 @@ const SETTINGS = {
   ],
   roadNetwork:{ name:"Street Network", file:"data/Zgharta_Road_Network.geojson" },
   zones:{ name:"Zones", file:"data/ZONES.geojson" },
-  colors:{ building:"#ff2d2d", primary:"#2ecc40", secondary:"#ff851b", tertiary:"#ffdc00", roadOther:"#ffdc00", highlight:"#00e5ff" },
+  colors:{ building:"#ff2d2d", primary:"#2ecc40", secondary:"#ff851b", tertiary:"#ffdc00", roadOther:"#22d3ee", highlight:"#ff00ff" },
   roadLabelMinZoom:16,
   fields:{
     zoneCode:["ZONE_CODE","Zone_Code"],
@@ -165,6 +165,7 @@ const SETTINGS = {
     geocode:["GEOCODING","GEOCODE"],
     roadName_road:["RoadName","Street_Add","Road_Name","Name"],
     roadNameOnly:["RoadName","Road_Name","ROADNAME","Name"],
+    roadRawId:["Raw_ID_26","RAW_ID_26","RawID_26","Raw_Id_26"],
     roadType_road:["Type","TYPE","Class"],
     roadStreetAdd:["Street_Add","Streed_Add"],
     zoneLabel:["ZONE_CODE","Zone_Code","ZONE","Code"]
@@ -206,16 +207,20 @@ function roadColorFromType(t){ t=String(t||"").toLowerCase();
   if(t.includes("prim"))return C.primary; if(t.includes("sec"))return C.secondary; if(t.includes("ter"))return C.tertiary; return C.roadOther; }
 // road color derived from the street code itself (segment count = class)
 function roadColorFromCode(sa){ const c=streetClass(sa); return c==="Primary"?C.primary:(c==="Secondary"?C.secondary:C.tertiary); }
-// robust road color: use a Type field (primary/secondary/tertiary) if present, else the street code
-function roadColorForFeature(props){
+// classify a road: Type field first, else street-code segment count
+function roadClass(props){
   const t=String(getProp(props,SETTINGS.fields.roadType_road)).toLowerCase();
-  if(t.includes("prim")) return C.primary;
-  if(t.includes("sec"))  return C.secondary;
-  if(t.includes("ter"))  return C.tertiary;
-  const sa=findStreetCode(props);
-  const n=sa.split("-").filter(s=>s!=="").length;
-  if(n>=3) return C.tertiary; if(n===2) return C.secondary; if(n===1) return C.primary;
-  return C.roadOther;
+  if(t.includes("prim")) return "Primary";
+  if(t.includes("sec"))  return "Secondary";
+  if(t.includes("ter"))  return "Tertiary";
+  const n=findStreetCode(props).split("-").filter(s=>s!=="").length;
+  if(n>=3) return "Tertiary"; if(n===2) return "Secondary"; if(n===1) return "Primary";
+  return "Other";
+}
+// road color from class (Other -> cyan)
+function roadColorForFeature(props){
+  const c=roadClass(props);
+  return c==="Primary"?C.primary : c==="Secondary"?C.secondary : c==="Tertiary"?C.tertiary : C.roadOther;
 }
 // find the street code on a road feature, no matter what the column is named.
 // 1) try configured field; 2) otherwise scan all attributes for a value like 1-10 or 1-10-01
@@ -254,11 +259,14 @@ function roadPopup(props){
   const rows=[]; const add=(k,v)=>{ if(v!==""&&v!=null) rows.push(`<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`); };
   const name=getProp(props,SETTINGS.fields.roadNameOnly);
   const sa=findStreetCode(props);
+  const rawId=getProp(props,SETTINGS.fields.roadRawId);
+  const cls=roadClass(props);
   add("Street code",sa);                                  // shown ABOVE the road name
-  if(sa!=="") add("Class",streetClass(sa));
+  add("Raw ID",rawId);
+  add("Class",cls);
   add("Road name",name);
   add("Type",getProp(props,SETTINGS.fields.roadType_road));
-  const title = sa!=="" ? String(sa) : (name||"Street");
+  const title = sa!=="" ? String(sa) : (rawId!==""?String(rawId):(name||"Street"));
   return `<div class="pop"><h4>${title}</h4><table>${rows.join("")}</table></div>`;
 }
 
@@ -309,11 +317,14 @@ fetch(SETTINGS.roadNetwork.file).then(r=>r.json()).then(gj=>{
     style:f=>({color:roadColorForFeature(f.properties),weight:4,opacity:.97}),
     onEachFeature:(feature,lyr)=>{
       const p=feature.properties||{};
+      const cls=roadClass(p);
       const sa=findStreetCode(p);
+      const rawId=String(getProp(p,SETTINGS.fields.roadRawId));
       const rname=String(getProp(p,SETTINGS.fields.roadNameOnly));
       lyr.bindPopup(roadPopup(p),{maxWidth:260});
-      if(sa) lyr.bindTooltip(sa,{permanent:true,direction:"center",className:"road-label"});  // yellow Street_Add box
-      roadLines.push({lyr, label:rname});                                                      // blue road name, parallel
+      const box = (cls==="Primary") ? rawId : sa;   // primary → Raw_ID_26 ; others → street code
+      if(box) lyr.bindTooltip(box,{permanent:true,direction:"center",className:"road-label"});
+      roadLines.push({lyr, label:rname});           // blue road name, parallel
       if(L.polylineDecorator&&lyr.getLatLngs){ try{
         roadGroup.addLayer(L.polylineDecorator(lyr,{patterns:[{offset:"6%",repeat:"14%",
           symbol:L.Symbol.arrowHead({pixelSize:9,polygon:false,pathOptions:{stroke:true,color:roadColorForFeature(p),weight:2,opacity:.97}})}]}));
@@ -360,6 +371,7 @@ legend.onAdd=function(){ const d=L.DomUtil.create("div","legend");
   d.innerHTML=`<b>Streets</b><span class="sw" style="border-color:${C.primary}"></span>Primary<br>
     <span class="sw" style="border-color:${C.secondary}"></span>Secondary<br>
     <span class="sw" style="border-color:${C.tertiary}"></span>Tertiary<br>
+    <span class="sw" style="border-color:${C.roadOther}"></span>Other<br>
     <b style="margin-top:6px">Buildings</b><span class="bx"></span>Building outline`; return d; };
 legend.addTo(map);
 map.on("zoomend",()=>{ try{ refreshRoadText(); }catch(e){} });
