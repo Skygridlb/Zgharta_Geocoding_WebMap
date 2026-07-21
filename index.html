@@ -76,9 +76,21 @@
   .brand{position:absolute;right:10px;bottom:24px;z-index:900;display:flex;gap:8px;align-items:center}
   .brand img{height:42px;width:auto;background:#fff;border-radius:8px;padding:3px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
 
-  .logos{display:flex;gap:8px;align-items:center}
-  .logos img{height:52px;width:auto;background:#fff;border-radius:8px;padding:3px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
-  .logos .logo-sky{height:64px}
+  .logos{display:flex;gap:12px;align-items:center;background:#fff;border-radius:10px;padding:8px 12px;box-shadow:0 2px 10px rgba(0,0,0,.3);max-width:min(94vw,560px)}
+  .logos .logo-muni{height:52px;width:auto;display:block}
+  .powered{display:flex;flex-direction:column;align-items:center;gap:2px}
+  .powered .pw-label{font-size:11px;font-weight:700;color:#111;white-space:nowrap}
+  .powered img{height:40px;width:auto;display:block}
+  .contact{display:flex;flex-direction:column;justify-content:center;line-height:1.25;border-left:1px solid #e2e2e2;padding-left:10px}
+  .contact .cname{font-size:14px;font-weight:800;color:#111}
+  .contact .ctitle{font-size:11px;font-weight:700;color:#222;text-transform:uppercase;letter-spacing:.2px}
+  .contact .cphone{font-size:12px;color:#111;margin-top:3px}
+  .contact .cemail{font-size:12px;color:#0a58ca;text-decoration:underline}
+  .contact .social{display:flex;gap:6px;margin-top:6px}
+  .contact .pill{font-size:11px;font-weight:700;color:#111 !important;text-decoration:none;border:1px solid #333;border-radius:6px;padding:3px 9px;background:#f3f3f3}
+  .contact .pill:hover{background:#e6e6e6}
+  .contact .tagline{font-size:10px;color:#777;letter-spacing:.5px;margin-top:6px}
+  @media (max-width:760px){ .contact{display:none} }
 
   .navbtn{display:inline-block;margin-top:8px;padding:7px 10px;border-radius:7px;background:#1a73e8;color:#fff !important;
     font-weight:600;font-size:12px;text-decoration:none;text-align:center}
@@ -144,6 +156,18 @@
 const SETTINGS = {
   startCenter:null, startZoom:null,
   municipalityLogo:"logo/Municipality logo.png",
+  // your branding shown next to the logos (edit freely)
+  contact:{
+    name:"FADI BOULOS KASS HANNA",
+    title1:"OWNER | GENERAL MANAGER",
+    title2:"GEOSPATIAL ENGINEER",
+    phone:"+961 71 709 417",
+    email:"fadi@skygridlb.com",
+    tagline:"YOUR SPACE • OUR DATA",
+    facebook:"https://www.facebook.com/skygridlb",
+    instagram:"https://www.instagram.com/skygridlb",
+    linkedin:"https://www.linkedin.com/company/skygridlb"
+  },
   ortho:{ show:true, urlPattern:"tiles/{z}/{x}/{y}.png", minZoom:14, maxZoom:21, tms:true, opacity:1.0 },
   buildingLayers:[
     { name:"Zgharta Buildings",       file:"data/Zgharta_Buildings.geojson" },
@@ -186,11 +210,27 @@ if(SETTINGS.ortho.show) orthoLayer.addTo(map);
 const baseLayers={"Satellite (Esri)":esriSat,"OpenStreetMap":osm};
 const overlayLayers={}; overlayLayers["Orthophoto"]=orthoLayer;
 
-// both logos together, top-right corner
+// logos + "Powered by" + contact card, top-right corner
 const logosCtl=L.control({position:"topright"});
 logosCtl.onAdd=function(){ const d=L.DomUtil.create("div","logos");
-  d.innerHTML=`<img src="${SETTINGS.municipalityLogo}" alt="Municipality" onerror="this.style.display='none'">`+
-              `<img class="logo-sky" src="logo/skygrid-logo-.png" alt="SkyGrid" onerror="this.style.display='none'">`;
+  const ct=SETTINGS.contact||{};
+  const pill=(u,t)=> u?`<a class="pill" href="${u}" target="_blank" rel="noopener">${t}</a>`:"";
+  const social=`<div class="social">${pill(ct.facebook,"Facebook")}${pill(ct.instagram,"Instagram")}${pill(ct.linkedin,"LinkedIn")}</div>`;
+  const emailLink = ct.email?`<a class="cemail" href="mailto:${ct.email}">${ct.email}</a>`:"";
+  d.innerHTML=
+    `<img class="logo-muni" src="${SETTINGS.municipalityLogo}" alt="Municipality" onerror="this.style.display='none'">`+
+    `<div class="powered"><div class="pw-label">Powered by</div>`+
+      `<img src="logo/skygrid-logo-.png" alt="SkyGrid" onerror="this.style.display='none'"></div>`+
+    `<div class="contact">`+
+      `<div class="cname">${ct.name||""}</div>`+
+      (ct.title1?`<div class="ctitle">${ct.title1}</div>`:"")+
+      (ct.title2?`<div class="ctitle">${ct.title2}</div>`:"")+
+      (ct.phone?`<div class="cphone">${ct.phone}</div>`:"")+
+      emailLink+
+      social+
+      (ct.tagline?`<div class="tagline">${ct.tagline}</div>`:"")+
+    `</div>`;
+  L.DomEvent.disableClickPropagation(d);
   return d; };
 logosCtl.addTo(map);
 
@@ -258,15 +298,12 @@ function buildingPopup(props,areaName,center){
 function roadPopup(props){
   const rows=[]; const add=(k,v)=>{ if(v!==""&&v!=null) rows.push(`<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`); };
   const name=getProp(props,SETTINGS.fields.roadNameOnly);
-  const sa=findStreetCode(props);
   const rawId=getProp(props,SETTINGS.fields.roadRawId);
   const cls=roadClass(props);
-  add("Street code",sa);                                  // shown ABOVE the road name
-  add("Raw ID",rawId);
+  add("Street Address",rawId);      // Street Address = Raw ID
   add("Class",cls);
   add("Road name",name);
-  add("Type",getProp(props,SETTINGS.fields.roadType_road));
-  const title = sa!=="" ? String(sa) : (rawId!==""?String(rawId):(name||"Street"));
+  const title = rawId!=="" ? String(rawId) : (name||"Street");
   return `<div class="pop"><h4>${title}</h4><table>${rows.join("")}</table></div>`;
 }
 
