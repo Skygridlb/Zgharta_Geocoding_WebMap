@@ -212,10 +212,20 @@ function roadColorForFeature(props){
   if(t.includes("prim")) return C.primary;
   if(t.includes("sec"))  return C.secondary;
   if(t.includes("ter"))  return C.tertiary;
-  const sa=String(getProp(props,SETTINGS.fields.roadStreetAdd));
+  const sa=findStreetCode(props);
   const n=sa.split("-").filter(s=>s!=="").length;
   if(n>=3) return C.tertiary; if(n===2) return C.secondary; if(n===1) return C.primary;
   return C.roadOther;
+}
+// find the street code on a road feature, no matter what the column is named.
+// 1) try configured field; 2) otherwise scan all attributes for a value like 1-10 or 1-10-01
+function findStreetCode(props){
+  if(!props) return "";
+  let v=String(getProp(props,SETTINGS.fields.roadStreetAdd)).trim();
+  if(v!=="" && v!=="0") return v;
+  for(const k in props){ const val=String(props[k]).trim();
+    if(/^\d+(-\d+)+$/.test(val)) return val; }   // e.g. 1-10, 1-10-01
+  return v;
 }
 // distinct color per zone so each zone is recognizable
 const ZONE_PALETTE=["#e6194B","#3cb44b","#4363d8","#f58231","#911eb4","#42d4f4","#f032e6","#bfef45",
@@ -243,7 +253,7 @@ function buildingPopup(props,areaName,center){
 function roadPopup(props){
   const rows=[]; const add=(k,v)=>{ if(v!==""&&v!=null) rows.push(`<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`); };
   const name=getProp(props,SETTINGS.fields.roadNameOnly);
-  const sa=getProp(props,SETTINGS.fields.roadStreetAdd);
+  const sa=findStreetCode(props);
   add("Street code",sa);                                  // shown ABOVE the road name
   if(sa!=="") add("Class",streetClass(sa));
   add("Road name",name);
@@ -293,12 +303,13 @@ SETTINGS.buildingLayers.forEach(cfg=>{
 const roadGroup=L.layerGroup();
 const roadLines=[];   // road names drawn PARALLEL to each street, only when zoomed in enough
 fetch(SETTINGS.roadNetwork.file).then(r=>r.json()).then(gj=>{
-  if(gj.features&&gj.features[0]) console.log("[Roads] fields:",Object.keys(gj.features[0].properties||{}));
+  if(gj.features&&gj.features[0]){ console.log("[Roads] fields:",Object.keys(gj.features[0].properties||{}));
+    console.log("[Roads] sample values:",gj.features[0].properties); }
   const lines=L.geoJSON(gj,{
     style:f=>({color:roadColorForFeature(f.properties),weight:4,opacity:.97}),
     onEachFeature:(feature,lyr)=>{
       const p=feature.properties||{};
-      const sa=String(getProp(p,SETTINGS.fields.roadStreetAdd));
+      const sa=findStreetCode(p);
       const rname=String(getProp(p,SETTINGS.fields.roadNameOnly));
       lyr.bindPopup(roadPopup(p),{maxWidth:260});
       if(sa) lyr.bindTooltip(sa,{permanent:true,direction:"center",className:"road-label"});  // yellow Street_Add box
