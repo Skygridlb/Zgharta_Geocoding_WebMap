@@ -54,7 +54,7 @@
   .results .empty{color:var(--muted);cursor:default;font-size:12px;padding:8px 10px}
   .hint{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4}
 
-  .road-label{background:#f7e59a;border:1px solid #b9902a;color:#4a3a00;font-size:11px;font-weight:600;padding:1px 5px;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.3);white-space:nowrap}
+  .road-label{background:#fff;border:1px solid #888;color:#111;font-size:11px;font-weight:700;padding:1px 6px;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.35);white-space:nowrap}
   .road-label::before{display:none}
   .zone-label{background:#fff;border:1px solid #333;color:#111;font-size:15px;font-weight:800;padding:2px 9px;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.35)}
   .zone-label::before{display:none}
@@ -150,7 +150,7 @@ const SETTINGS = {
   ],
   roadNetwork:{ name:"Street Network", file:"data/Zgharta_Road_Network.geojson" },
   zones:{ name:"Zones", file:"data/ZONES.geojson" },
-  colors:{ building:"#ff2d2d", primary:"#ff5e00", secondary:"#ffab00", tertiary:"#ffe14d", roadOther:"#ffd000", highlight:"#00e5ff" },
+  colors:{ building:"#ff2d2d", primary:"#2ecc40", secondary:"#ff851b", tertiary:"#ffdc00", roadOther:"#ffdc00", highlight:"#00e5ff" },
   roadLabelMinZoom:16,
   fields:{
     zoneCode:["ZONE_CODE","Zone_Code"],
@@ -192,6 +192,13 @@ function getProp(props,names){
 function streetClass(sa){ const p=String(sa).split("-").filter(s=>s!==""); return p.length<=1?"Primary":(p.length===2?"Secondary":"Tertiary"); }
 function roadColorFromType(t){ t=String(t||"").toLowerCase();
   if(t.includes("prim"))return C.primary; if(t.includes("sec"))return C.secondary; if(t.includes("ter"))return C.tertiary; return C.roadOther; }
+// road color derived from the street code itself (segment count = class)
+function roadColorFromCode(sa){ const c=streetClass(sa); return c==="Primary"?C.primary:(c==="Secondary"?C.secondary:C.tertiary); }
+// distinct color per zone so each zone is recognizable
+const ZONE_PALETTE=["#e6194B","#3cb44b","#4363d8","#f58231","#911eb4","#42d4f4","#f032e6","#bfef45",
+  "#fabed4","#469990","#dcbeff","#9A6324","#fffac8","#800000","#aaffc3","#808000","#ffd8b1","#000075","#a9a9a9"];
+function hashCode(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h<<5)-h+s.charCodeAt(i); h|=0; } return h; }
+function zoneColor(code){ const n=parseInt(code,10); const i=isNaN(n)?hashCode(String(code)):n; return ZONE_PALETTE[Math.abs(i)%ZONE_PALETTE.length]; }
 // split a building number into digits + suffix letters, e.g. "63C" -> ["63","C"]
 function splitBuilding(b){ const m=String(b).trim().match(/^(\d+)\s*([A-Za-z]*)$/); return m?[m[1],m[2].toUpperCase()]:[String(b).trim(),""]; }
 
@@ -228,8 +235,8 @@ SETTINGS.buildingLayers.forEach(cfg=>{
   fetch(cfg.file).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); })
   .then(gj=>{
     const layer=L.geoJSON(gj,{
-      style:{color:C.building,weight:1.4,fill:false},
-      pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:5,color:C.building,fill:false,weight:1.6}),
+      style:{color:C.building,weight:1.4,fill:true,fillColor:C.building,fillOpacity:0},
+      pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:6,color:C.building,fill:true,fillColor:C.building,fillOpacity:.15,weight:1.8}),
       onEachFeature:(feature,lyr)=>{
         const p=feature.properties||{};
         lyr.bindPopup(buildingPopup(p,cfg.name),{maxWidth:280});
@@ -258,16 +265,17 @@ const roadGroup=L.layerGroup();
 fetch(SETTINGS.roadNetwork.file).then(r=>r.json()).then(gj=>{
   if(gj.features&&gj.features[0]) console.log("[Roads] fields:",Object.keys(gj.features[0].properties||{}));
   const lines=L.geoJSON(gj,{
-    style:f=>({color:roadColorFromType(getProp(f.properties,SETTINGS.fields.roadType_road)),weight:3.5,opacity:.95}),
+    style:f=>({color:roadColorFromCode(String(getProp(f.properties,SETTINGS.fields.roadStreetAdd))),weight:4,opacity:.97}),
     onEachFeature:(feature,lyr)=>{
       const p=feature.properties||{};
+      const sa=String(getProp(p,SETTINGS.fields.roadStreetAdd));
       const name=String(getProp(p,SETTINGS.fields.roadName_road));
-      const type=String(getProp(p,SETTINGS.fields.roadType_road));
       lyr.bindPopup(roadPopup(p),{maxWidth:260});
-      if(name) lyr.bindTooltip(name,{permanent:true,direction:"center",className:"road-label"});
+      const label = sa ? (sa + (name?("  "+name):"")) : name;   // Street_Add, then road name if present
+      if(label) lyr.bindTooltip(label,{permanent:true,direction:"center",className:"road-label"});
       if(L.polylineDecorator&&lyr.getLatLngs){ try{
         roadGroup.addLayer(L.polylineDecorator(lyr,{patterns:[{offset:"6%",repeat:"14%",
-          symbol:L.Symbol.arrowHead({pixelSize:9,polygon:false,pathOptions:{stroke:true,color:roadColorFromType(type),weight:2,opacity:.95}})}]}));
+          symbol:L.Symbol.arrowHead({pixelSize:9,polygon:false,pathOptions:{stroke:true,color:roadColorFromCode(sa),weight:2,opacity:.97}})}]}));
       }catch(e){} }
     }
   });
@@ -279,11 +287,15 @@ fetch(SETTINGS.roadNetwork.file).then(r=>r.json()).then(gj=>{
 /* ---------- zones (labels only) ---------- */
 fetch(SETTINGS.zones.file).then(r=>r.json()).then(gj=>{
   const layer=L.geoJSON(gj,{
-    style:{color:C.tertiary,weight:1.5,fill:false,opacity:.5,dashArray:"6,5"},
+    interactive:false,                                   // don't block clicks on buildings
+    style:f=>{ const col=zoneColor(String(getProp(f.properties,SETTINGS.fields.zoneLabel)));
+               return {color:col,weight:2.5,opacity:.95,fill:true,fillColor:col,fillOpacity:.14}; },
     onEachFeature:(feature,lyr)=>{ const code=getProp(feature.properties,SETTINGS.fields.zoneLabel);
       if(code!==""&&lyr.getBounds) lyr.bindTooltip(String(code),{permanent:true,direction:"center",className:"zone-label"}); }
   });
-  overlayLayers[SETTINGS.zones.name]=layer; layer.addTo(map); refreshControls();
+  overlayLayers[SETTINGS.zones.name]=layer; layer.addTo(map);
+  try{ layer.bringToBack(); }catch(e){}                  // keep zones beneath buildings/roads
+  refreshControls();
 }).catch(e=>console.warn("Zones: "+e.message));
 
 /* ---------- controls + legend ---------- */
@@ -430,7 +442,7 @@ function showResults(list){
 }
 
 /* ---------- navigation ---------- */
-function clearHighlight(){ highlight.forEach(l=>{ try{ l.setStyle({color:C.building,weight:1.4,fill:false}); }catch(e){} }); highlight=[]; }
+function clearHighlight(){ highlight.forEach(l=>{ try{ l.setStyle({color:C.building,weight:1.4,fill:true,fillColor:C.building,fillOpacity:0}); }catch(e){} }); highlight=[]; }
 function goToBuilding(rec){
   clearHighlight(); const lyr=rec.layer;
   try{ if(lyr.getBounds) map.flyToBounds(lyr.getBounds(),{maxZoom:20,padding:[40,40]}); else if(lyr.getLatLng) map.flyTo(lyr.getLatLng(),20); }catch(e){}
