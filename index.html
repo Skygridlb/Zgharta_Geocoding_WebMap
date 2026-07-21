@@ -28,7 +28,11 @@
 
   .panel{position:absolute;top:12px;left:12px;z-index:1000;width:352px;max-width:calc(100vw - 24px);
     background:var(--panel);color:var(--ink);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.35);overflow:hidden}
-  .panel__head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--panel-2);border-bottom:1px solid var(--line)}
+  .panel__head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--panel-2);border-bottom:1px solid var(--line);cursor:pointer;justify-content:space-between}
+  .panel__toggle{background:transparent;border:0;color:var(--ink);font-size:20px;line-height:1;cursor:pointer;padding:2px 6px;flex:0 0 auto;transition:transform .2s}
+  .panel.collapsed .panel__body{display:none}
+  .panel.collapsed .panel__head{border-bottom:0}
+  .panel.collapsed .panel__toggle{transform:rotate(-90deg)}
   .panel__head img{height:36px;width:auto;border-radius:6px;background:#fff;padding:2px}
   .panel__title{font-size:14px;font-weight:700;line-height:1.1}
   .panel__title small{display:block;font-weight:400;font-size:11px;color:var(--muted);margin-top:2px}
@@ -107,6 +111,8 @@
 
   @media (max-width:520px){
     .panel{width:calc(100vw - 16px);top:8px;left:8px}
+    .panel__body{max-height:62vh}
+    .results{max-height:22vh}
     .logos{padding:5px 8px;gap:8px}
     .logos .logo-muni{height:38px}
     .powered img{height:50px}
@@ -119,8 +125,9 @@
 <div id="map"></div>
 
 <div class="panel">
-  <div class="panel__head">
+  <div class="panel__head" id="panelHead">
     <div class="panel__title">Zgharta Geocoding System<small>Find your building</small></div>
+    <button class="panel__toggle" id="panelToggle" aria-label="Show or hide search">▾</button>
   </div>
   <div class="panel__body">
 
@@ -432,6 +439,13 @@ map.on("zoomend",()=>{ try{ refreshRoadText(); }catch(e){} });
 /* ================================================================
    SEGMENTED STREET + BUILDING SEARCH
    ================================================================ */
+// collapsible panel (so the map is visible on phones)
+const panelEl=document.querySelector(".panel");
+document.getElementById("panelHead").addEventListener("click",()=>{ panelEl.classList.toggle("collapsed"); });
+const isMobile=()=> window.innerWidth < 620;
+if(isMobile()) panelEl.classList.add("collapsed");   // start collapsed on phones
+function collapseOnMobile(){ if(isMobile()) panelEl.classList.add("collapsed"); }
+
 const selZone=document.getElementById("selZone");
 const zoneNameEl=document.getElementById("zoneName");
 const pPrim=document.getElementById("pPrim"), pSec=document.getElementById("pSec"), pTer=document.getElementById("pTer");
@@ -561,6 +575,7 @@ function showResults(list){
 function clearHighlight(){ highlight.forEach(l=>{ try{ l.setStyle({color:C.building,weight:1.4,fill:true,fillColor:C.building,fillOpacity:0}); }catch(e){} }); highlight=[]; }
 function goToBuilding(rec){
   clearHighlight(); const lyr=rec.layer;
+  collapseOnMobile();                       // reveal the map on phones
   try{ if(lyr.getBounds) map.flyToBounds(lyr.getBounds(),{maxZoom:20,padding:[40,40]}); else if(lyr.getLatLng) map.flyTo(lyr.getLatLng(),20); }catch(e){}
   try{ lyr.setStyle({color:C.highlight,weight:3,fill:true,fillColor:C.highlight,fillOpacity:.4}); highlight=[lyr]; }catch(e){}
   setTimeout(()=>{ try{lyr.openPopup();}catch(e){} },650);
