@@ -440,7 +440,7 @@ legend.onAdd=function(){ const d=L.DomUtil.create("div","legend");
     <span class="sw" style="border-color:${C.secondary}"></span>Secondary<br>
     <span class="sw" style="border-color:${C.tertiary}"></span>Tertiary<br>
     <span class="sw" style="border-color:${C.roadOther}"></span>Other<br>
-    <b style="margin-top:6px">Buildings</b><span class="bx"></span>Building outline`; return d; };
+    <b style="margin-top:6px">Buildings</b><span class="bx"></span>Building Rooftop`; return d; };
 legend.addTo(map);
 map.on("zoomend",()=>{ try{ refreshRoadText(); }catch(e){} });
 
