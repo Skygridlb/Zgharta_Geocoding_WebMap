@@ -5,56 +5,54 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Zgharta Geocoding Map</title>
 
-<!-- Leaflet (map engine) + PolylineDecorator (road arrows) — need an internet connection -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js"></script>
 
 <style>
-  :root{
-    --panel:#0f3d3e; --panel-2:#14504f; --ink:#eef6f4; --muted:#9dc2bd;
-    --accent:#f2a35e; --line:rgba(255,255,255,.12);
-  }
+  :root{--panel:#0f3d3e;--panel-2:#14504f;--ink:#eef6f4;--muted:#9dc2bd;--accent:#f2a35e;--line:rgba(255,255,255,.12)}
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
   body{font-family:"Segoe UI",system-ui,Arial,sans-serif}
   #map{position:absolute;inset:0;background:#0b1c1c}
 
-  /* ---------- search / info panel ---------- */
   .panel{position:absolute;top:12px;left:12px;z-index:1000;width:340px;max-width:calc(100vw - 24px);
     background:var(--panel);color:var(--ink);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.35);overflow:hidden}
   .panel__head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--panel-2);border-bottom:1px solid var(--line)}
   .panel__head img{height:36px;width:auto;border-radius:6px;background:#fff;padding:2px}
   .panel__title{font-size:14px;font-weight:700;line-height:1.1}
   .panel__title small{display:block;font-weight:400;font-size:11px;color:var(--muted);margin-top:2px}
-  .panel__body{padding:12px 14px}
-  .search-row{display:flex;gap:8px;margin-bottom:8px}
-  select,input[type="text"]{font-size:13px;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:#0b3231;color:var(--ink);outline:none}
-  select{flex:0 0 120px}
-  input[type="text"]{flex:1 1 auto;min-width:0}
-  input[type="text"]::placeholder{color:var(--muted)}
-  input[type="text"]:focus{border-color:var(--accent)}
-  .results{list-style:none;margin:6px 0 0;padding:0;max-height:44vh;overflow:auto}
-  .results li{padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;border:1px solid transparent;display:flex;gap:8px;align-items:baseline}
+  .panel__body{padding:12px 14px;max-height:calc(100vh - 120px);overflow:auto}
+
+  label.fld{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:10px 0 4px}
+  label.fld:first-child{margin-top:0}
+  select,input[type="text"]{width:100%;font-size:13px;padding:9px 10px;border-radius:8px;border:1px solid var(--line);
+    background:#0b3231;color:var(--ink);outline:none}
+  select:disabled{opacity:.45}
+  select:focus,input:focus{border-color:var(--accent)}
+  .zonename{font-size:14px;font-weight:700;color:var(--accent);min-height:18px;margin-top:6px}
+
+  .btns{display:flex;gap:8px;margin-top:12px}
+  button{flex:1;font-size:13px;font-weight:600;padding:10px;border-radius:8px;border:0;cursor:pointer}
+  #btnFind{background:var(--accent);color:#3a2405}
+  #btnReset{background:#0b3231;color:var(--ink);border:1px solid var(--line)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+
+  .sep{border:none;border-top:1px solid var(--line);margin:14px 0}
+  .results{list-style:none;margin:6px 0 0;padding:0;max-height:34vh;overflow:auto}
+  .results li{padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;border:1px solid transparent}
   .results li:hover{background:var(--panel-2);border-color:var(--line)}
-  .results li .ic{flex:0 0 auto}
   .results li b{color:var(--accent)}
   .results li .sub{display:block;font-size:11px;color:var(--muted);margin-top:2px}
   .results .empty{color:var(--muted);cursor:default;font-size:12px;padding:8px 10px}
-  .results li:hover.empty{background:none;border-color:transparent}
   .hint{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4}
 
-  /* ---------- map labels ---------- */
-  .road-label{background:#f7e59a;border:1px solid #b9902a;color:#4a3a00;font-size:11px;font-weight:600;
-    padding:1px 5px;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.3);white-space:nowrap}
-  .road-label::before{display:none}                    /* hide tooltip arrow */
-  .zone-label{background:#fff;border:1px solid #333;color:#111;font-size:15px;font-weight:800;
-    padding:2px 9px;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+  .road-label{background:#f7e59a;border:1px solid #b9902a;color:#4a3a00;font-size:11px;font-weight:600;padding:1px 5px;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.3);white-space:nowrap}
+  .road-label::before{display:none}
+  .zone-label{background:#fff;border:1px solid #333;color:#111;font-size:15px;font-weight:800;padding:2px 9px;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.35)}
   .zone-label::before{display:none}
-  .leaflet-tooltip.road-label,.leaflet-tooltip.zone-label{opacity:1}
-  .hide-road-labels .road-label{display:none}          /* toggled by zoom */
+  .hide-road-labels .road-label{display:none}
 
-  /* ---------- popups ---------- */
   .leaflet-popup-content{margin:12px 14px;font-size:13px;line-height:1.5}
   .pop h4{margin:0 0 6px;font-size:14px;color:#0f3d3e}
   .pop table{border-collapse:collapse;width:100%}
@@ -62,17 +60,15 @@
   .pop td.k{color:#6b7a78;white-space:nowrap;font-size:12px}
   .pop td.v{font-weight:600}
 
-  /* ---------- legend ---------- */
   .legend{background:rgba(15,61,62,.92);color:var(--ink);padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.7;box-shadow:0 2px 10px rgba(0,0,0,.3)}
   .legend b{display:block;margin-bottom:3px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
   .legend .sw{display:inline-block;width:22px;height:0;border-top:3px solid;margin-right:6px;vertical-align:middle}
   .legend .bx{display:inline-block;width:12px;height:12px;border:2px solid #ff2d2d;margin-right:6px;vertical-align:middle}
 
-  /* ---------- brand ---------- */
   .brand{position:absolute;right:10px;bottom:24px;z-index:900;display:flex;gap:8px;align-items:center}
   .brand img{height:42px;width:auto;background:#fff;border-radius:8px;padding:3px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
 
-  @media (max-width:520px){ .panel{width:calc(100vw - 24px)} select{flex-basis:104px} }
+  @media (max-width:520px){ .panel{width:calc(100vw - 24px)} }
 </style>
 </head>
 <body>
@@ -82,21 +78,31 @@
 <div class="panel">
   <div class="panel__head">
     <img id="logoMuni" src="" alt="" onerror="this.style.display='none'"/>
-    <div class="panel__title">Zgharta Survey 2026<small>Search buildings, streets & zones</small></div>
+    <div class="panel__title">Zgharta Survey 2026<small>Find your building</small></div>
   </div>
   <div class="panel__body">
-    <div class="search-row">
-      <select id="searchField">
-        <option value="all">All</option>
-        <option value="zone">Zone</option>
-        <option value="street">Street / Road</option>
-        <option value="building">Building No.</option>
-      </select>
-      <input id="searchBox" type="text" placeholder="Type to search…" autocomplete="off" list="autolist"/>
-      <datalist id="autolist"></datalist>
+
+    <label class="fld">Zone code</label>
+    <select id="selZone"><option value="">— select zone —</option></select>
+    <div class="zonename" id="zoneName"></div>
+
+    <label class="fld">Street (primary‑secondary‑tertiary)</label>
+    <select id="selStreet" disabled><option value="">— select zone first —</option></select>
+
+    <label class="fld">Building number</label>
+    <select id="selBuilding" disabled><option value="">— select street first —</option></select>
+
+    <div class="btns">
+      <button id="btnFind" disabled>Find building</button>
+      <button id="btnReset">Reset</button>
     </div>
+
+    <hr class="sep"/>
+    <label class="fld">Quick find (building no. or road name)</label>
+    <input id="quick" type="text" placeholder="e.g. 63C or Sleiman Frangieh" autocomplete="off" list="quicklist"/>
+    <datalist id="quicklist"></datalist>
     <ul class="results" id="results"></ul>
-    <div class="hint">Street/Road accepts a class (primary, secondary, tertiary) or a road name. Click a result to fly to it.</div>
+    <div class="hint">Pick zone → street → building number, then Find. Or type a number/name in Quick find.</div>
   </div>
 </div>
 
@@ -109,58 +115,39 @@
    ▼▼▼  SETTINGS — THE ONLY PART YOU NORMALLY EDIT  ▼▼▼
    ================================================================ */
 const SETTINGS = {
+  startCenter:null, startZoom:null,
+  municipalityLogo:"logo/Municipality logo.png",
 
-  startCenter: null,   // e.g. [34.395,35.895] ; null = auto-fit to buildings
-  startZoom:   null,
+  ortho:{ show:true, urlPattern:"tiles/{z}/{x}/{y}.png", minZoom:14, maxZoom:21, tms:true, opacity:1.0 },
 
-  municipalityLogo: "logo/Municipality logo.png",
-
-  ortho: {
-    show:true, urlPattern:"tiles/{z}/{x}/{y}.png",
-    minZoom:14, maxZoom:21, tms:true, opacity:1.0   // if ortho looks flipped/misplaced -> tms:false
-  },
-
-  // Building layers: hollow red outlines. name = label in layer list; file = path.
-  buildingLayers: [
+  buildingLayers:[
     { name:"Zgharta Buildings",       file:"data/Zgharta_Buildings.geojson" },
     { name:"Aardat Buildings",        file:"data/Aardat_Buildings.geojson" },
     { name:"Mazraat Ejbeh Buildings", file:"data/Mazraat_Ejbeh_Buildings.geojson" },
     { name:"El Hariq Buildings",      file:"data/El_Hariq_Buildings.geojson" },
     { name:"El Talle Buildings",      file:"data/El_Talle_Buildings.geojson" }
   ],
+  roadNetwork:{ name:"Street Network", file:"data/Zgharta_Road_Network.geojson" },
+  zones:{ name:"Zones", file:"data/ZONES.geojson" },
 
-  roadNetwork: { name:"Street Network", file:"data/Zgharta_Road_Network.geojson" },
-  zones:       { name:"Zones",          file:"data/ZONES.geojson" },
+  colors:{ building:"#ff2d2d", primary:"#ff5e00", secondary:"#ffab00", tertiary:"#ffe14d", roadOther:"#ffd000", highlight:"#00e5ff" },
+  roadLabelMinZoom:16,
 
-  // Colors
-  colors: {
-    building:"#ff2d2d",
-    primary:"#ff5e00", secondary:"#ffab00", tertiary:"#ffe14d", roadOther:"#ffd000",
-    highlight:"#00e5ff"
-  },
-
-  roadLabelMinZoom: 16,   // road name labels only appear at/above this zoom (less clutter)
-
-  // FIELD NAMES — search tries each name until one exists. Fix here if a search finds nothing.
-  fields: {
-    // buildings
-    zone:          ["ZONE_NAME","Zone_Name","zone_name","ZONE"],
+  fields:{
     zoneCode:      ["ZONE_CODE","Zone_Code"],
-    bldgStreetName:["RoadName","Street_Add","Streed_Add","Road_Name","STREET_ADD"],
-    bldgStreetType:["Type","TYPE","Class"],
-    building:      ["B_ADDRESS","B_Address","BLDG_NO","Building_No"],
-    geocode:       ["GEOCODING","GEOCODE","Geocode"],
-    // roads
-    roadName:      ["Street_Add","Streed_Add","STREET_ADD","RoadName","Road_Name","Name","NAME"],
-    roadType:      ["Type","TYPE","Class","Road_Type"],
-    // zones
-    zoneLabel:     ["ZONE_CODE","Zone_Code","ZONE","Code","CODE"]
+    zoneName:      ["ZONE_NAME","Zone_Name","zone_name"],
+    streetAdd:     ["Street_Add","Streed_Add","STREET_ADD"],
+    roadName:      ["RoadName","Road_Name","ROADNAME"],
+    building:      ["B_ADDRESS","B_Address","BLDG_NO"],
+    geocode:       ["GEOCODING","GEOCODE"],
+    roadName_road: ["RoadName","Street_Add","Road_Name","Name"],
+    roadType_road: ["Type","TYPE","Class"],
+    zoneLabel:     ["ZONE_CODE","Zone_Code","ZONE","Code"]
   }
 };
 /* ================================================================
    ▲▲▲  END OF SETTINGS  ▲▲▲
    ================================================================ */
-
 const C = SETTINGS.colors;
 
 /* ---------- map + basemaps ---------- */
@@ -168,18 +155,13 @@ const map = L.map("map",{zoomControl:true,minZoom:5,maxZoom:22});
 const esriSat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
   {maxZoom:22,maxNativeZoom:19,attribution:"Imagery © Esri"}).addTo(map);
 const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"});
-
-const orthoLayer = L.tileLayer(SETTINGS.ortho.urlPattern,{
-  tms:SETTINGS.ortho.tms,minZoom:SETTINGS.ortho.minZoom,maxZoom:22,maxNativeZoom:SETTINGS.ortho.maxZoom,
-  opacity:SETTINGS.ortho.opacity,
-  errorTileUrl:"data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="
-});
+const orthoLayer = L.tileLayer(SETTINGS.ortho.urlPattern,{tms:SETTINGS.ortho.tms,minZoom:SETTINGS.ortho.minZoom,maxZoom:22,
+  maxNativeZoom:SETTINGS.ortho.maxZoom,opacity:SETTINGS.ortho.opacity,
+  errorTileUrl:"data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="});
 if(SETTINGS.ortho.show) orthoLayer.addTo(map);
-
-const baseLayers = {"Satellite (Esri)":esriSat,"OpenStreetMap":osm};
-const overlayLayers = {};
-overlayLayers["Orthophoto"] = orthoLayer;
-document.getElementById("logoMuni").src = SETTINGS.municipalityLogo;
+const baseLayers={"Satellite (Esri)":esriSat,"OpenStreetMap":osm};
+const overlayLayers={}; overlayLayers["Orthophoto"]=orthoLayer;
+document.getElementById("logoMuni").src=SETTINGS.municipalityLogo;
 
 /* ---------- helpers ---------- */
 function getProp(props,names){
@@ -189,7 +171,13 @@ function getProp(props,names){
   for(const n of names){ const v=lower[n.toLowerCase()]; if(v!==undefined&&v!==null&&v!=="") return v; }
   return "";
 }
-function roadColor(type){
+function streetClass(streetAdd){
+  const parts=String(streetAdd).split("-").filter(s=>s!=="");
+  if(parts.length<=1) return "Primary";
+  if(parts.length===2) return "Secondary";
+  return "Tertiary";
+}
+function roadColorFromType(type){
   const t=String(type||"").toLowerCase();
   if(t.includes("prim")) return C.primary;
   if(t.includes("sec"))  return C.secondary;
@@ -198,41 +186,42 @@ function roadColor(type){
 }
 function popupHtml(props,areaName){
   const rows=[]; const add=(k,v)=>{ if(v!==""&&v!=null) rows.push(`<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`); };
-  add("Zone",getProp(props,SETTINGS.fields.zone));
+  add("Zone",getProp(props,SETTINGS.fields.zoneName));
   add("Zone code",getProp(props,SETTINGS.fields.zoneCode));
-  add("Street",getProp(props,SETTINGS.fields.bldgStreetName));
-  add("Class",getProp(props,SETTINGS.fields.bldgStreetType));
+  const sa=getProp(props,SETTINGS.fields.streetAdd);
+  add("Street code",sa);
+  if(sa!=="") add("Class",streetClass(sa));
+  add("Road name",getProp(props,SETTINGS.fields.roadName));
   add("Building",getProp(props,SETTINGS.fields.building));
   add("Area",areaName);
   add("Geocode",getProp(props,SETTINGS.fields.geocode));
   return `<div class="pop"><h4>${getProp(props,SETTINGS.fields.building)||"Building"}</h4><table>${rows.join("")}</table></div>`;
 }
 
-/* ---------- search data stores ---------- */
-const buildingIndex=[];            // {area,props,layer,zone,streetName,streetType,building}
-const roadGroups={};               // roadName -> {type, layers:[], sample}
+/* ---------- stores ---------- */
+const buildingIndex=[];   // {area,props,layer,zoneCode,zoneName,streetAdd,roadName,building}
 const allBounds=[];
-const autoZone=new Set(), autoRoad=new Set(), autoBuilding=new Set();
+const roadGroups={};
 
-/* ---------- load building layers ---------- */
+/* ---------- load buildings ---------- */
 let loaded=0; const total=SETTINGS.buildingLayers.length;
 SETTINGS.buildingLayers.forEach(cfg=>{
   fetch(cfg.file).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); })
   .then(gj=>{
     const layer=L.geoJSON(gj,{
-      style:{color:C.building,weight:1.4,fill:false,fillOpacity:0},   // hollow red
+      style:{color:C.building,weight:1.4,fill:false},
       pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:5,color:C.building,fill:false,weight:1.6}),
       onEachFeature:(feature,lyr)=>{
         const p=feature.properties||{};
         lyr.bindPopup(popupHtml(p,cfg.name),{maxWidth:280});
-        const zone=String(getProp(p,SETTINGS.fields.zone));
-        const sName=String(getProp(p,SETTINGS.fields.bldgStreetName));
-        const sType=String(getProp(p,SETTINGS.fields.bldgStreetType));
-        const bno=String(getProp(p,SETTINGS.fields.building));
-        buildingIndex.push({area:cfg.name,props:p,layer:lyr,zone,streetName:sName,streetType:sType,building:bno});
-        if(zone) autoZone.add(zone);
-        if(sName) autoRoad.add(sName);
-        if(bno) autoBuilding.add(bno);
+        buildingIndex.push({
+          area:cfg.name, props:p, layer:lyr,
+          zoneCode:String(getProp(p,SETTINGS.fields.zoneCode)),
+          zoneName:String(getProp(p,SETTINGS.fields.zoneName)),
+          streetAdd:String(getProp(p,SETTINGS.fields.streetAdd)),
+          roadName:String(getProp(p,SETTINGS.fields.roadName)),
+          building:String(getProp(p,SETTINGS.fields.building))
+        });
       }
     }).addTo(map);
     overlayLayers[cfg.name]=layer;
@@ -243,166 +232,175 @@ SETTINGS.buildingLayers.forEach(cfg=>{
   .finally(()=>{ loaded++; if(loaded===total) finishLoad(); });
 });
 
-/* ---------- load road network (lines + arrows + labels) ---------- */
+/* ---------- roads ---------- */
 const roadGroup=L.layerGroup();
 fetch(SETTINGS.roadNetwork.file).then(r=>r.json()).then(gj=>{
   if(gj.features&&gj.features[0]) console.log("[Roads] fields:",Object.keys(gj.features[0].properties||{}));
   const lines=L.geoJSON(gj,{
-    style:f=>{ const col=roadColor(getProp(f.properties,SETTINGS.fields.roadType));
-               return {color:col,weight:3.5,opacity:.95}; },
+    style:f=>({color:roadColorFromType(getProp(f.properties,SETTINGS.fields.roadType_road)),weight:3.5,opacity:.95}),
     onEachFeature:(feature,lyr)=>{
       const p=feature.properties||{};
-      const name=String(getProp(p,SETTINGS.fields.roadName));
-      const type=String(getProp(p,SETTINGS.fields.roadType));
-      if(name){
-        lyr.bindTooltip(name,{permanent:true,direction:"center",className:"road-label"});
-        autoRoad.add(name);
-        if(!roadGroups[name]) roadGroups[name]={type,layers:[]};
-        roadGroups[name].layers.push(lyr);
-      }
-      // directional arrows toward the end of each line
-      if(L.polylineDecorator && lyr.getLatLngs){
-        try{
-          const dec=L.polylineDecorator(lyr,{patterns:[{
-            offset:"6%",repeat:"14%",
-            symbol:L.Symbol.arrowHead({pixelSize:9,polygon:false,
-              pathOptions:{stroke:true,color:roadColor(type),weight:2,opacity:.95}})
-          }]});
-          roadGroup.addLayer(dec);
-        }catch(e){}
-      }
+      const name=String(getProp(p,SETTINGS.fields.roadName_road));
+      const type=String(getProp(p,SETTINGS.fields.roadType_road));
+      if(name){ lyr.bindTooltip(name,{permanent:true,direction:"center",className:"road-label"});
+        if(!roadGroups[name]) roadGroups[name]={type,layers:[]}; roadGroups[name].layers.push(lyr); }
+      if(L.polylineDecorator&&lyr.getLatLngs){ try{
+        roadGroup.addLayer(L.polylineDecorator(lyr,{patterns:[{offset:"6%",repeat:"14%",
+          symbol:L.Symbol.arrowHead({pixelSize:9,polygon:false,pathOptions:{stroke:true,color:roadColorFromType(type),weight:2,opacity:.95}})}]}));
+      }catch(e){} }
     }
   });
-  roadGroup.addLayer(lines);
-  roadGroup.addTo(map);
+  roadGroup.addLayer(lines); roadGroup.addTo(map);
   overlayLayers[SETTINGS.roadNetwork.name]=roadGroup;
   refreshControls(); applyRoadLabelZoom();
 }).catch(e=>console.warn("Roads: "+e.message));
 
-/* ---------- load zones (labels only, no popup) ---------- */
+/* ---------- zones (labels only) ---------- */
 fetch(SETTINGS.zones.file).then(r=>r.json()).then(gj=>{
   const layer=L.geoJSON(gj,{
-    style:{color:SETTINGS.colors.tertiary,weight:1.5,fill:false,opacity:.5,dashArray:"6,5"},
+    style:{color:C.tertiary,weight:1.5,fill:false,opacity:.5,dashArray:"6,5"},
     onEachFeature:(feature,lyr)=>{
       const code=getProp(feature.properties,SETTINGS.fields.zoneLabel);
-      if(code!=="" && lyr.getBounds){
-        lyr.bindTooltip(String(code),{permanent:true,direction:"center",className:"zone-label"});
-      }
+      if(code!==""&&lyr.getBounds) lyr.bindTooltip(String(code),{permanent:true,direction:"center",className:"zone-label"});
     }
   });
-  overlayLayers[SETTINGS.zones.name]=layer;   // toggle on from the layer list when wanted
-  layer.addTo(map);
-  refreshControls();
+  overlayLayers[SETTINGS.zones.name]=layer; layer.addTo(map); refreshControls();
 }).catch(e=>console.warn("Zones: "+e.message));
 
-/* ---------- layer control + legend ---------- */
+/* ---------- controls + legend ---------- */
 let layerControl=null;
-function refreshControls(){
-  if(layerControl) map.removeControl(layerControl);
-  layerControl=L.control.layers(baseLayers,overlayLayers,{collapsed:false}).addTo(map);
-}
+function refreshControls(){ if(layerControl) map.removeControl(layerControl);
+  layerControl=L.control.layers(baseLayers,overlayLayers,{collapsed:false}).addTo(map); }
 const legend=L.control({position:"bottomleft"});
-legend.onAdd=function(){
-  const d=L.DomUtil.create("div","legend");
+legend.onAdd=function(){ const d=L.DomUtil.create("div","legend");
   d.innerHTML=`<b>Streets</b>
     <span class="sw" style="border-color:${C.primary}"></span>Primary<br>
     <span class="sw" style="border-color:${C.secondary}"></span>Secondary<br>
     <span class="sw" style="border-color:${C.tertiary}"></span>Tertiary<br>
-    <b style="margin-top:6px">Buildings</b>
-    <span class="bx"></span>Building outline`;
-  return d;
-};
+    <b style="margin-top:6px">Buildings</b><span class="bx"></span>Building outline`;
+  return d; };
 legend.addTo(map);
-
-/* road labels only when zoomed in */
-function applyRoadLabelZoom(){
-  const el=map.getContainer();
-  if(map.getZoom() < SETTINGS.roadLabelMinZoom) L.DomUtil.addClass(el,"hide-road-labels");
-  else L.DomUtil.removeClass(el,"hide-road-labels");
-}
+function applyRoadLabelZoom(){ const el=map.getContainer();
+  if(map.getZoom()<SETTINGS.roadLabelMinZoom) L.DomUtil.addClass(el,"hide-road-labels");
+  else L.DomUtil.removeClass(el,"hide-road-labels"); }
 map.on("zoomend",applyRoadLabelZoom);
 
-/* ---------- finish: fit + autocomplete lists ---------- */
-function finishLoad(){
-  refreshControls();
-  if(SETTINGS.startCenter&&SETTINGS.startZoom) map.setView(SETTINGS.startCenter,SETTINGS.startZoom);
-  else if(allBounds.length){ let b=allBounds[0]; for(let i=1;i<allBounds.length;i++) b=b.extend(allBounds[i]); map.fitBounds(b.pad(0.05)); }
-  else map.setView([34.395,35.895],14);
-  applyRoadLabelZoom();
-  buildAutolist();
-  console.log("Buildings indexed:",buildingIndex.length,"| distinct roads:",Object.keys(roadGroups).length);
-}
+/* ================================================================
+   CASCADING CITIZEN SEARCH:  Zone -> Street -> Building
+   ================================================================ */
+const selZone=document.getElementById("selZone");
+const selStreet=document.getElementById("selStreet");
+const selBuilding=document.getElementById("selBuilding");
+const zoneNameEl=document.getElementById("zoneName");
+const btnFind=document.getElementById("btnFind");
+const btnReset=document.getElementById("btnReset");
 
-/* ---------- SEARCH ---------- */
-const box=document.getElementById("searchBox");
-const fieldSel=document.getElementById("searchField");
-const resultsEl=document.getElementById("results");
-const autolist=document.getElementById("autolist");
+// tree: zoneCode -> { name, streets: { streetAdd -> { roadName, buildings: { bno -> record } } } }
+const tree={};
 let highlight=[];
 
-function buildAutolist(){
-  // fill the browser autocomplete list based on the chosen category
-  const f=fieldSel.value; let items=[];
-  if(f==="zone") items=[...autoZone];
-  else if(f==="street") items=["Primary","Secondary","Tertiary",...autoRoad];
-  else if(f==="building") items=[...autoBuilding];
-  else items=[...autoZone,...autoRoad,...autoBuilding];
-  items.sort((a,b)=>a.localeCompare(b));
-  autolist.innerHTML=items.slice(0,2000).map(v=>`<option value="${String(v).replace(/"/g,'')}">`).join("");
+function natCmp(a,b){ return String(a).localeCompare(String(b),undefined,{numeric:true}); }
+
+function buildTree(){
+  buildingIndex.forEach(r=>{
+    const zc=r.zoneCode||"(none)";
+    if(!tree[zc]) tree[zc]={name:r.zoneName||"", streets:{}};
+    if(!tree[zc].name && r.zoneName) tree[zc].name=r.zoneName;
+    const sa=r.streetAdd||"(none)";
+    if(!tree[zc].streets[sa]) tree[zc].streets[sa]={roadName:r.roadName||"", buildings:{}};
+    if(!tree[zc].streets[sa].roadName && r.roadName) tree[zc].streets[sa].roadName=r.roadName;
+    const bno=r.building||"(none)";
+    if(!tree[zc].streets[sa].buildings[bno]) tree[zc].streets[sa].buildings[bno]=r;
+  });
+  // fill zone dropdown
+  const zoneCodes=Object.keys(tree).sort(natCmp);
+  zoneCodes.forEach(zc=>{
+    const o=document.createElement("option");
+    o.value=zc; o.textContent = tree[zc].name ? `${zc} — ${tree[zc].name}` : zc;
+    selZone.appendChild(o);
+  });
+  buildQuicklist();
 }
 
-function clearHighlight(){
-  highlight.forEach(l=>{ try{
-    if(l._isRoad) l.setStyle({color:l._baseColor,weight:3.5});
-    else l.setStyle({color:C.building,weight:1.4,fill:false});
-  }catch(e){} });
-  highlight=[];
-}
+selZone.addEventListener("change",()=>{
+  const zc=selZone.value;
+  resetStreet(); resetBuilding();
+  zoneNameEl.textContent = zc && tree[zc] ? tree[zc].name : "";
+  if(!zc){ return; }
+  const streets=Object.keys(tree[zc].streets).sort(natCmp);
+  selStreet.disabled=false;
+  selStreet.innerHTML='<option value="">— select street —</option>';
+  streets.forEach(sa=>{
+    const s=tree[zc].streets[sa];
+    const cls = sa==="(none)" ? "" : streetClass(sa);
+    const nm  = s.roadName ? s.roadName : "(no name)";
+    const label = sa==="(none)" ? "(no street code)" : `${sa} · ${cls} · ${nm}`;
+    const o=document.createElement("option"); o.value=sa; o.textContent=label;
+    selStreet.appendChild(o);
+  });
+});
 
-function runSearch(){
-  const q=box.value.trim().toLowerCase();
-  const f=fieldSel.value;
-  resultsEl.innerHTML="";
+selStreet.addEventListener("change",()=>{
+  resetBuilding();
+  const zc=selZone.value, sa=selStreet.value;
+  if(!sa){ return; }
+  const bldgs=Object.keys(tree[zc].streets[sa].buildings).sort(natCmp);
+  selBuilding.disabled=false;
+  selBuilding.innerHTML='<option value="">— select building —</option>';
+  bldgs.forEach(b=>{ const o=document.createElement("option"); o.value=b; o.textContent=b; selBuilding.appendChild(o); });
+});
+
+selBuilding.addEventListener("change",()=>{ btnFind.disabled = !selBuilding.value; });
+
+btnFind.addEventListener("click",()=>{
+  const zc=selZone.value, sa=selStreet.value, b=selBuilding.value;
+  if(zc&&sa&&b && tree[zc]&&tree[zc].streets[sa]&&tree[zc].streets[sa].buildings[b]){
+    goToBuilding(tree[zc].streets[sa].buildings[b]);
+  }
+});
+
+btnReset.addEventListener("click",()=>{
+  selZone.value=""; zoneNameEl.textContent="";
+  resetStreet(); resetBuilding();
+  document.getElementById("quick").value="";
+  document.getElementById("results").innerHTML="";
+  clearHighlight();
+});
+
+function resetStreet(){ selStreet.disabled=true; selStreet.innerHTML='<option value="">— select zone first —</option>'; }
+function resetBuilding(){ selBuilding.disabled=true; selBuilding.innerHTML='<option value="">— select street first —</option>'; btnFind.disabled=true; }
+
+/* ---------- quick find ---------- */
+const quick=document.getElementById("quick");
+const quicklist=document.getElementById("quicklist");
+const resultsEl=document.getElementById("results");
+
+function buildQuicklist(){
+  const names=new Set();
+  buildingIndex.forEach(r=>{ if(r.roadName) names.add(r.roadName); });
+  quicklist.innerHTML=[...names].sort(natCmp).map(v=>`<option value="${String(v).replace(/"/g,'')}">`).join("");
+}
+quick.addEventListener("input",()=>{
+  const q=quick.value.trim().toLowerCase(); resultsEl.innerHTML="";
   if(!q) return;
   const out=[];
-
-  // roads (only for street/all)
-  if(f==="street"||f==="all"){
-    for(const name in roadGroups){
-      const g=roadGroups[name];
-      if(name.toLowerCase().includes(q) || String(g.type).toLowerCase().includes(q)){
-        out.push({kind:"road",label:name,type:g.type,group:g});
-        if(out.length>=80) break;
-      }
+  for(const r of buildingIndex){
+    if(r.building.toLowerCase().includes(q) || r.roadName.toLowerCase().includes(q) || r.streetAdd.toLowerCase().includes(q)){
+      out.push(r); if(out.length>=80) break;
     }
   }
-  // buildings
-  for(const rec of buildingIndex){
-    let hit=false;
-    if(f==="zone") hit=rec.zone.toLowerCase().includes(q);
-    else if(f==="building") hit=rec.building.toLowerCase().includes(q);
-    else if(f==="street") hit=rec.streetName.toLowerCase().includes(q)||rec.streetType.toLowerCase().includes(q);
-    else hit=[rec.zone,rec.streetName,rec.streetType,rec.building,rec.area].join(" ").toLowerCase().includes(q);
-    if(hit){ out.push({kind:"building",rec}); if(out.length>=120) break; }
-  }
-
-  if(!out.length){ resultsEl.innerHTML='<li class="empty">No matches. Try another category or spelling.</li>'; return; }
-
-  out.forEach(o=>{
+  if(!out.length){ resultsEl.innerHTML='<li class="empty">No matches.</li>'; return; }
+  out.forEach(r=>{
     const li=document.createElement("li");
-    if(o.kind==="road"){
-      li.innerHTML=`<span class="ic">🛣️</span><span><b>${o.label}</b><span class="sub">Road · ${o.type||"street"}</span></span>`;
-      li.onclick=()=>goToRoad(o.group);
-    }else{
-      const r=o.rec;
-      li.innerHTML=`<span class="ic">🏢</span><span><b>${r.building||"—"}</b> · ${r.zone||r.area}
-        <span class="sub">${r.area}${r.streetName?" · "+r.streetName:""}${r.streetType?" · "+r.streetType:""}</span></span>`;
-      li.onclick=()=>goToBuilding(r);
-    }
+    li.innerHTML=`<b>${r.building||"—"}</b> · Zone ${r.zoneCode} ${r.zoneName}
+      <span class="sub">${r.streetAdd?("St "+r.streetAdd):""}${r.roadName?" · "+r.roadName:""} · ${r.area}</span>`;
+    li.onclick=()=>goToBuilding(r);
     resultsEl.appendChild(li);
   });
-}
+});
 
+/* ---------- navigation ---------- */
+function clearHighlight(){ highlight.forEach(l=>{ try{ l.setStyle({color:C.building,weight:1.4,fill:false}); }catch(e){} }); highlight=[]; }
 function goToBuilding(rec){
   clearHighlight(); const lyr=rec.layer;
   try{ if(lyr.getBounds) map.flyToBounds(lyr.getBounds(),{maxZoom:20,padding:[40,40]});
@@ -410,19 +408,17 @@ function goToBuilding(rec){
   try{ lyr.setStyle({color:C.highlight,weight:3,fill:true,fillColor:C.highlight,fillOpacity:.4}); highlight=[lyr]; }catch(e){}
   setTimeout(()=>{ try{lyr.openPopup();}catch(e){} },650);
 }
-function goToRoad(group){
-  clearHighlight();
-  let b=null;
-  group.layers.forEach(l=>{ try{ const lb=l.getBounds(); b=b?b.extend(lb):lb; }catch(e){} });
-  if(b&&b.isValid()) map.flyToBounds(b,{maxZoom:19,padding:[40,40]});
-  group.layers.forEach(l=>{ try{ l._isRoad=true; l._baseColor=roadColor(group.type); l.setStyle({color:C.highlight,weight:5}); highlight.push(l);}catch(e){} });
-  const first=group.layers[0];
-  if(first){ setTimeout(()=>{ try{first.openTooltip();}catch(e){} },650); }
-}
 
-box.addEventListener("input",runSearch);
-fieldSel.addEventListener("change",()=>{ buildAutolist(); runSearch(); });
-box.addEventListener("keydown",e=>{ if(e.key==="Enter"){ const first=resultsEl.querySelector("li:not(.empty)"); if(first) first.click(); }});
+/* ---------- finish ---------- */
+function finishLoad(){
+  refreshControls();
+  if(SETTINGS.startCenter&&SETTINGS.startZoom) map.setView(SETTINGS.startCenter,SETTINGS.startZoom);
+  else if(allBounds.length){ let b=allBounds[0]; for(let i=1;i<allBounds.length;i++) b=b.extend(allBounds[i]); map.fitBounds(b.pad(0.05)); }
+  else map.setView([34.395,35.895],14);
+  applyRoadLabelZoom();
+  buildTree();
+  console.log("Buildings indexed:",buildingIndex.length,"| zones:",Object.keys(tree).length);
+}
 
 L.control.scale({imperial:false}).addTo(map);
 </script>
