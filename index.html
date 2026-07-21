@@ -55,7 +55,7 @@
   .results .empty{color:var(--muted);cursor:default;font-size:12px;padding:8px 10px}
   .hint{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4}
 
-  .road-label{background:#fff;border:1px solid #888;color:#111;font-size:11px;font-weight:700;padding:1px 6px;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.35);white-space:nowrap}
+  .road-label{background:#fdf3a0;border:1px solid #b9902a;color:#4a3a00;font-size:11px;font-weight:700;padding:1px 6px;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.35);white-space:nowrap}
   .road-label::before{display:none}
   .zone-label{background:#fff;border:1px solid #333;color:#111;font-size:15px;font-weight:800;padding:2px 9px;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.35)}
   .zone-label::before{display:none}
@@ -244,10 +244,12 @@ function roadPopup(props){
   const rows=[]; const add=(k,v)=>{ if(v!==""&&v!=null) rows.push(`<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`); };
   const name=getProp(props,SETTINGS.fields.roadNameOnly);
   const sa=getProp(props,SETTINGS.fields.roadStreetAdd);
+  add("Street code",sa);                                  // shown ABOVE the road name
+  if(sa!=="") add("Class",streetClass(sa));
   add("Road name",name);
-  add("Street code",sa); if(sa!=="") add("Class",streetClass(sa));
   add("Type",getProp(props,SETTINGS.fields.roadType_road));
-  return `<div class="pop"><h4>${name||("Street "+sa)||"Street"}</h4><table>${rows.join("")}</table></div>`;
+  const title = sa!=="" ? String(sa) : (name||"Street");
+  return `<div class="pop"><h4>${title}</h4><table>${rows.join("")}</table></div>`;
 }
 
 /* ---------- stores ---------- */
@@ -296,9 +298,11 @@ fetch(SETTINGS.roadNetwork.file).then(r=>r.json()).then(gj=>{
     style:f=>({color:roadColorForFeature(f.properties),weight:4,opacity:.97}),
     onEachFeature:(feature,lyr)=>{
       const p=feature.properties||{};
-      const label=String(getProp(p,SETTINGS.fields.roadStreetAdd));   // label ALL streets by Street_Add
+      const sa=String(getProp(p,SETTINGS.fields.roadStreetAdd));
+      const rname=String(getProp(p,SETTINGS.fields.roadNameOnly));
       lyr.bindPopup(roadPopup(p),{maxWidth:260});
-      roadLines.push({lyr, label});                                    // text applied in refreshRoadText()
+      if(sa) lyr.bindTooltip(sa,{permanent:true,direction:"center",className:"road-label"});  // yellow Street_Add box
+      roadLines.push({lyr, label:rname});                                                      // blue road name, parallel
       if(L.polylineDecorator&&lyr.getLatLngs){ try{
         roadGroup.addLayer(L.polylineDecorator(lyr,{patterns:[{offset:"6%",repeat:"14%",
           symbol:L.Symbol.arrowHead({pixelSize:9,polygon:false,pathOptions:{stroke:true,color:roadColorForFeature(p),weight:2,opacity:.97}})}]}));
@@ -312,11 +316,13 @@ fetch(SETTINGS.roadNetwork.file).then(r=>r.json()).then(gj=>{
 
 // road names drawn PARALLEL to each street, only when zoomed in enough
 function refreshRoadText(){
+  const el=map.getContainer();
   const show = map.getZoom() >= SETTINGS.roadLabelMinZoom;
+  if(show) L.DomUtil.removeClass(el,"hide-road-labels"); else L.DomUtil.addClass(el,"hide-road-labels");
   roadLines.forEach(o=>{ if(!o.lyr.setText) return; try{
     o.lyr.setText(null);
     if(show && o.label) o.lyr.setText("  "+o.label+"  ",{center:true,offset:4,
-      attributes:{fill:"#111",stroke:"#fff","stroke-width":3,"paint-order":"stroke","font-weight":"700","font-size":"12px"}});
+      attributes:{fill:"#12379c",stroke:"#fff","stroke-width":3,"paint-order":"stroke","font-weight":"700","font-size":"12px"}});
   }catch(e){} });
 }
 
