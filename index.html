@@ -112,6 +112,9 @@
     .panel{width:calc(100vw - 16px);top:8px;left:8px}
     .panel__body{max-height:62vh}
     .results{max-height:22vh}
+    /* keep the layers button clear of the full-width search panel */
+    .leaflet-top.leaflet-right{top:76px}
+    .leaflet-control-layers{max-height:52vh;overflow:auto}
   }
   /* phones: branding becomes a full-width bar at the bottom */
   @media (max-width:620px){
@@ -237,8 +240,11 @@ const orthoLayer = L.tileLayer(SETTINGS.ortho.urlPattern,{tms:SETTINGS.ortho.tms
   maxNativeZoom:SETTINGS.ortho.maxZoom,opacity:SETTINGS.ortho.opacity,
   errorTileUrl:"data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="});
 if(SETTINGS.ortho.show) orthoLayer.addTo(map);
-const baseLayers={"Satellite (Esri)":esriSat,"OpenStreetMap":osm};
-const overlayLayers={}; overlayLayers["Orthophoto"]=orthoLayer;
+const overlayLayers={};
+overlayLayers["Satellite (Esri)"]=esriSat;
+overlayLayers["OpenStreetMap"]=osm;
+overlayLayers["Orthophoto"]=orthoLayer;
+esriSat.setZIndex(1); osm.setZIndex(2); orthoLayer.setZIndex(5);
 
 // logos + "Powered by" + contact card, top-right corner
 const logosCtl=L.control({position:"topright"});
@@ -434,7 +440,7 @@ fetch(SETTINGS.zones.file).then(r=>r.json()).then(gj=>{
 let layerControl=null;
 function refreshControls(){ if(layerControl) map.removeControl(layerControl);
   const collapsed = window.innerWidth < 760;   // tidy on phones
-  layerControl=L.control.layers(baseLayers,overlayLayers,{collapsed:collapsed}).addTo(map); }
+  layerControl=L.control.layers(null,overlayLayers,{collapsed:collapsed}).addTo(map); }
 const legend=L.control({position:"bottomleft"});
 legend.onAdd=function(){ const d=L.DomUtil.create("div","legend");
   d.innerHTML=`<b>Streets</b><span class="sw" style="border-color:${C.primary}"></span>Primary<br>
